@@ -144,7 +144,7 @@
                 <div id="tool-display">MODE: MINING</div>
                 <div id="inventory-bar"></div>
                 <div class="controls-text">
-                    [WASD] Move/Jump<br>
+                    [WASD / Arrows] Move<br>
                     [E] Toggle Mode<br>
                     [1-3] Select Block
                 </div>
@@ -392,17 +392,27 @@
         const keys = {};
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
-            if (e.code === 'KeyA') player.vx = -PLAYER_SPEED;
-            if (e.code === 'KeyD') player.vx = PLAYER_SPEED;
-            if (e.code === 'Space' || e.code === 'KeyW') { if (player.grounded) player.vy = -JUMP_FORCE; }
+            // Left (A or ArrowLeft)
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') player.vx = -PLAYER_SPEED;
+            // Right (D or ArrowRight)
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') player.vx = PLAYER_SPEED;
+            // Jump (Space, W, or ArrowUp)
+            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') { 
+                if (player.grounded) player.vy = -JUMP_FORCE; 
+            }
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
             if (e.key === '1') { selectedBlock = TILES.DIRT; mode = 'BUILD'; updateHUD(); }
             if (e.key === '2') { selectedBlock = TILES.GRASS; mode = 'BUILD'; updateHUD(); }
             if (e.key === '3') { selectedBlock = TILES.STONE; mode = 'BUILD'; updateHUD(); }
         });
+        
         window.addEventListener('keyup', e => {
             keys[e.code] = false;
-            if ((e.code === 'KeyA' && player.vx < 0) || (e.code === 'KeyD' && player.vx > 0)) player.vx = 0;
+            // Stop logic handles both WASD and Arrows
+            if (((e.code === 'KeyA' || e.code === 'ArrowLeft') && player.vx < 0) || 
+                ((e.code === 'KeyD' || e.code === 'ArrowRight') && player.vx > 0)) {
+                player.vx = 0;
+            }
         });
 
         // Mouse/Touch
