@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria</title>
+    <title>Vivaria - Erosion Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
             --pixel-font: 'Press Start 2P', cursive;
-            --ui-bg: rgba(20, 20, 30, 0.85);
+            --ui-bg: rgba(20, 20, 30, 0.9);
             --ui-border: #4a69bd;
+            --highlight: #f1c40f;
         }
         body {
             margin: 0;
@@ -23,138 +24,89 @@
             user-select: none;
         }
 
-        /* Title Style */
-        h1 {
-            margin: 0;
-            padding: 10px;
-            font-size: 24px;
-            color: #f1c40f;
-            text-shadow: 3px 3px 0 #c0392b; /* Retro shadow effect */
-            pointer-events: auto;
-        }
-
         #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 20px; box-sizing: border-box;
         }
 
         .hud-panel {
-            background: var(--ui-bg);
-            padding: 15px;
-            border-radius: 4px;
-            border: 3px solid var(--ui-border);
-            pointer-events: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            background: var(--ui-bg); padding: 15px;
+            border-radius: 4px; border: 3px solid var(--ui-border);
+            pointer-events: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.6);
         }
 
-        /* Inventory Styling */
-        #inventory-bar {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
+        #inventory-bar { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; max-width: 400px;}
         .inv-slot {
-            width: 48px;
-            height: 48px;
-            background-color: rgba(0,0,0,0.5);
-            border: 3px solid #555;
-            position: relative;
-            cursor: pointer;
-            image-rendering: pixelated;
-            transition: transform 0.1s;
+            width: 40px; height: 40px; background-color: rgba(0,0,0,0.5);
+            border: 2px solid #555; position: relative; cursor: pointer; transition: transform 0.1s;
         }
-        .inv-slot:hover { transform: scale(1.1); }
-        
-        /* Procedural Icon Textures */
-        .slot-icon-1 { background: linear-gradient(135deg, #5a3a22 25%, #3e2817 25%, #3e2817 50%, #5a3a22 50%, #5a3a22 75%, #3e2817 75%); background-size: 10px 10px; } /* Dirt */
-        .slot-icon-2 { background: linear-gradient(to bottom, #2ecc71 30%, #5a3a22 30%); } /* Grass */
-        .slot-icon-3 { background: #7f8c8d; background-image: radial-gradient(#95a5a6 20%, transparent 20%); background-size: 8px 8px; } /* Stone */
-
+        .inv-slot:hover { transform: scale(1.1); border-color: white; }
         .inv-slot span {
-            position: absolute;
-            bottom: 2px;
-            right: 4px;
-            font-size: 10px;
-            color: white;
-            text-shadow: 2px 2px 0 #000;
+            position: absolute; bottom: 2px; right: 2px;
+            font-size: 8px; color: white; text-shadow: 1px 1px 0 #000;
         }
-        .selected { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        .selected { border-color: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
 
-        #tool-display {
-            font-size: 12px;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: bold;
-        }
+        .icon-1 { background: linear-gradient(135deg, #4a2e1b, #2a1a0f); } 
+        .icon-2 { background: linear-gradient(to bottom, #2ecc71 40%, #4a2e1b 40%); } 
+        .icon-3 { background: linear-gradient(135deg, #7f8c8d, #2c3e50); } 
+        .icon-4 { background: linear-gradient(135deg, #f1c40f, #b7950b); } 
+        .icon-5 { background: rgba(52, 152, 219, 0.8); } 
+        .icon-6 { background: linear-gradient(135deg, #3e2723, #1b110f); } 
 
-        .controls-text {
-            margin-top: 12px;
-            font-size: 10px;
-            color: #bdc3c7;
-            line-height: 1.6;
+        #modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none;
+            justify-content: center; align-items: center; pointer-events: auto; z-index: 20;
         }
-
-        .bottom-right {
-            align-self: flex-end;
-            display: flex;
-            gap: 10px;
-            pointer-events: auto;
+        .modal-box { background: var(--ui-bg); border: 4px solid var(--highlight); padding: 30px; text-align: center; }
+        .size-btn {
+            display: block; width: 100%; margin: 10px 0; padding: 15px;
+            font-family: var(--pixel-font); background: #34495e; color: white;
+            border: 2px solid #fff; cursor: pointer;
         }
+        .size-btn:hover { background: var(--highlight); color: black; }
 
         button {
-            font-family: var(--pixel-font);
-            background: #34495e;
-            border: 2px solid #bdc3c7;
-            color: white;
-            padding: 10px 15px;
-            font-size: 10px;
-            cursor: pointer;
-            transition: background 0.2s;
+            font-family: var(--pixel-font); background: #34495e; border: 2px solid #bdc3c7;
+            color: white; padding: 10px 15px; font-size: 10px; cursor: pointer; margin-left: 5px;
         }
-        button:hover { background: #2c3e50; border-color: #f1c40f;}
+        button:hover { background: #2c3e50; border-color: var(--highlight); }
 
-        canvas {
-            display: block;
-            cursor: crosshair;
-        }
+        canvas { display: block; cursor: crosshair; }
     </style>
 </head>
 <body>
+
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <h2 style="color: #f1c40f; margin-bottom: 20px;">GENERATE NEW WORLD</h2>
+            <button class="size-btn" onclick="confirmNewWorld(100, 50)">SMALL (100x50)</button>
+            <button class="size-btn" onclick="confirmNewWorld(200, 80)">MEDIUM (200x80)</button>
+            <button class="size-btn" onclick="confirmNewWorld(400, 120)">LARGE (400x120)</button>
+            <button class="size-btn" style="background:#c0392b" onclick="closeModal()">CANCEL</button>
+        </div>
+    </div>
+
     <div id="ui-layer">
-        <div class="top-bar">
+        <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin-bottom:10px; text-shadow:none; color: #f1c40f;">VIVARIA</h1>
-                <div id="tool-display">MODE: MINING</div>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA</h1>
+                <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
-                <div class="controls-text">
-                    [WASD / Arrows] Move<br>
-                    [E] Toggle Mode<br>
-                    [1-3] Select Block
+            </div>
+            <div class="hud-panel" style="text-align: right;">
+                <div style="font-size: 10px; color: #bdc3c7; line-height: 1.6;">
+                    [Arrows] Move<br>[Space] Jump/Swim<br>[E] Mode<br>[1-6] Items
                 </div>
             </div>
         </div>
-
-        <div class="bottom-right">
+        <div style="align-self: flex-end; pointer-events: auto;">
             <button onclick="saveGame()">Save</button>
             <button onclick="loadGame()">Load</button>
-            <button onclick="resetWorld()">Reset World</button>
+            <button onclick="openModal()">New World</button>
         </div>
     </div>
     
@@ -166,60 +118,171 @@
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
+        let COLS = 150; 
+        let ROWS = 60; 
         const TILE_SIZE = 32;
-        const COLS = 120; // Wider world
-        const ROWS = 60;  // Deep world
-        const GRAVITY = 0.5;
-        const PLAYER_SPEED = 5;
-        const JUMP_FORCE = 12;
 
-        const TILES = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
+        const GRAVITY = 0.5;
+        const WATER_GRAVITY = 0.1;
+        const WATER_DRAG = 0.92; 
+        const SWIM_FORCE = 1.5; 
+        const BUOYANCY = -0.15; 
         
-        // HSL Colors for lighting engine
+        const TILES = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6 };
+        
         const BASE_COLORS = {
-            1: [25, 59, 25],  // Dirt
-            2: [130, 65, 45], // Grass
-            3: [210, 10, 45]  // Stone
+            1: [25, 59, 25],  
+            2: [130, 65, 45], 
+            3: [210, 10, 45], 
+            4: [48, 85, 50],  
+            6: [20, 30, 20]   
         };
 
-        // --- STATE ---
         let world = [];
-        let player = { x: 300, y: 100, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true };
+        let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false };
         let camera = { x: 0, y: 0 };
         let mouseTile = { c: -1, r: -1 };
         
-        let inventory = { 1: 0, 2: 0, 3: 0 }; 
+        let inventory = {}; 
+        Object.values(TILES).forEach(v => { if(v !== 0) inventory[v] = 0; });
+        
         let selectedBlock = TILES.DIRT;
         let mode = 'MINE'; 
+        let tickCount = 0;
 
-        // --- NOISE ---
         function pseudoRandom(x, y) {
             return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
         }
 
-        function initWorld() {
+        function initWorld(w, h) {
+            COLS = w; ROWS = h;
             world = [];
-            let surfaceLevel = 20;
+            let surfaceLevel = Math.floor(ROWS * 0.3);
+            let heights = new Array(COLS).fill(0);
+
             for (let r = 0; r < ROWS; r++) {
                 let row = [];
                 for (let c = 0; c < COLS; c++) {
-                    // Generate rolling hills
-                    let hill = Math.floor(Math.sin(c * 0.1) * 3) + Math.floor(Math.sin(c * 0.5) * 1);
-                    let currentSurface = surfaceLevel + hill;
+                    let biomeNoise = Math.sin(c * 0.015) + (Math.sin(c * 0.05) * 0.1); 
+                    let isDesert = biomeNoise > 0.65; 
 
-                    if (r < currentSurface) row.push(TILES.AIR);
-                    else if (r === currentSurface) row.push(TILES.GRASS);
-                    else if (r > currentSurface && r < currentSurface + 12) row.push(TILES.DIRT);
-                    else row.push(TILES.STONE);
+                    let heightMod;
+                    if (isDesert) heightMod = Math.floor(Math.sin(c * 0.1) * 2) + Math.floor(Math.sin(c * 0.02) * 4);
+                    else heightMod = Math.floor(Math.sin(c * 0.05) * 5) + Math.floor(Math.sin(c * 0.2) * 2);
+                    
+                    let actualSurface = surfaceLevel + heightMod;
+                    if (r === 0) heights[c] = actualSurface;
+
+                    if (r < actualSurface) {
+                        row.push(TILES.AIR);
+                    } else if (r === actualSurface) {
+                        if (isDesert) row.push(TILES.SAND);
+                        else row.push(TILES.GRASS);
+                    } else if (r > actualSurface && r < actualSurface + 15) {
+                        if (isDesert) row.push(TILES.SAND); 
+                        else row.push(TILES.DIRT);
+                    } else {
+                        row.push(TILES.STONE);
+                    }
                 }
                 world.push(row);
             }
-            // Spawn player on surface
-            player.y = (surfaceLevel - 5) * TILE_SIZE;
+
+            for(let i=0; i < COLS/35; i++) {
+                let lakeX = Math.floor(Math.random() * (COLS - 10)) + 5;
+                let surfaceY = heights[lakeX];
+                carveLake(lakeX, surfaceY);
+            }
+            
+            cleanupFloatingBlocks();
+
+            player.x = (COLS * TILE_SIZE) / 2;
+            player.y = 0; player.vx = 0; player.vy = 0;
             updateHUD();
+        }
+
+        function carveLake(cx, cy) {
+            let r = 3 + Math.floor(Math.random() * 5); 
+            for(let y = cy - r; y <= cy + r; y++) {
+                for(let x = cx - r; x <= cx + r; x++) {
+                    if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+                        let dist = Math.sqrt((x-cx)**2 + ((y-cy)*1.5)**2);
+                        if (dist < r) {
+                            if (y > cy) world[y][x] = TILES.WATER;
+                            else world[y][x] = TILES.AIR;
+                            if (dist > r - 1.5 && world[y][x] !== TILES.AIR && world[y][x] !== TILES.WATER) {
+                                world[y][x] = TILES.MUD;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function cleanupFloatingBlocks() {
+            for (let c = 0; c < COLS; c++) {
+                for (let r = ROWS - 2; r >= 0; r--) {
+                    let tile = world[r][c];
+                    if ((tile === TILES.DIRT || tile === TILES.GRASS || tile === TILES.STONE || tile === TILES.MUD) && 
+                        world[r+1][c] === TILES.AIR) {
+                        world[r][c] = TILES.AIR;
+                    }
+                }
+            }
+        }
+
+        // --- FLUID SIM & EROSION ---
+        function updateCellularAutomata() {
+            let startC = tickCount % 2 === 0 ? 0 : COLS - 1;
+            let endC = tickCount % 2 === 0 ? COLS : -1;
+            let step = tickCount % 2 === 0 ? 1 : -1;
+
+            for (let r = ROWS - 2; r >= 0; r--) {
+                for (let c = startC; c !== endC; c += step) {
+                    let tile = world[r][c];
+
+                    // SAND
+                    if (tile === TILES.SAND) {
+                        if (world[r+1][c] === TILES.AIR || world[r+1][c] === TILES.WATER) {
+                            world[r][c] = world[r+1][c]; world[r+1][c] = TILES.SAND;
+                        } else if (world[r+1][c-1] === TILES.AIR && world[r][c-1] === TILES.AIR) {
+                             world[r][c] = TILES.AIR; world[r+1][c-1] = TILES.SAND;
+                        } else if (world[r+1][c+1] === TILES.AIR && world[r][c+1] === TILES.AIR) {
+                             world[r][c] = TILES.AIR; world[r+1][c+1] = TILES.SAND;
+                        }
+                    }
+
+                    // WATER
+                    if (tile === TILES.WATER) {
+                        // NEW EROSION LOGIC
+                        if (r + 1 < ROWS) {
+                            let below = world[r+1][c];
+                            if (below === TILES.DIRT || below === TILES.GRASS) {
+                                // 1/150 chance per update (~5 seconds average)
+                                if (Math.random() < 0.007) {
+                                    world[r+1][c] = TILES.MUD;
+                                }
+                            }
+                        }
+
+                        // Water Movement
+                        if (world[r+1][c] === TILES.AIR) {
+                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER;
+                        } else {
+                            let left = (c > 0 && world[r][c-1] === TILES.AIR);
+                            let right = (c < COLS-1 && world[r][c+1] === TILES.AIR);
+                            if (left && right) {
+                                if (Math.random() > 0.5) { world[r][c] = TILES.AIR; world[r][c+1] = TILES.WATER; }
+                                else { world[r][c] = TILES.AIR; world[r][c-1] = TILES.WATER; }
+                            } else if (left) {
+                                world[r][c] = TILES.AIR; world[r][c-1] = TILES.WATER;
+                            } else if (right) {
+                                world[r][c] = TILES.AIR; world[r][c+1] = TILES.WATER;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // --- PHYSICS ---
@@ -230,64 +293,94 @@
             return world[r][c];
         }
 
-        function update() {
-            player.vy += GRAVITY;
-            player.grounded = false;
+        function updatePlayer() {
+            let centerX = Math.floor((player.x + player.width/2) / TILE_SIZE);
+            let centerY = Math.floor((player.y + player.height/2) / TILE_SIZE);
+            if (centerY >= 0 && centerY < ROWS && centerX >= 0 && centerX < COLS) {
+                player.inWater = (world[centerY][centerX] === TILES.WATER);
+            } else { player.inWater = false; }
 
+            let atSurface = player.inWater && (getTileAt(player.x, player.y) === TILES.AIR);
+
+            let moveSpeed = 5;
+            if (keys['ArrowRight'] || keys['KeyD']) player.vx = moveSpeed;
+            else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -moveSpeed;
+            else player.vx = 0;
+
+            let jumping = (keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
+
+            if (jumping) {
+                if (atSurface) { player.vy = -10; } 
+                else if (player.inWater) {
+                    player.vy -= SWIM_FORCE; 
+                    if (player.vy < -6) player.vy = -6;
+                } else if (player.grounded) {
+                    player.vy = -12; player.grounded = false;
+                }
+            }
+
+            if (player.inWater) {
+                if (!jumping) player.vy += BUOYANCY;
+                player.vy += WATER_GRAVITY; player.vy *= WATER_DRAG; player.vx *= WATER_DRAG; 
+            } else { player.vy += GRAVITY; }
+            
+            player.grounded = false;
             if (player.vx > 0) player.facingRight = true;
             if (player.vx < 0) player.facingRight = false;
 
-            // Horizontal Collision
             let nextX = player.x + player.vx;
-            if (nextX < 0) nextX = 0;
-            if (nextX > (COLS * TILE_SIZE) - player.width) nextX = (COLS * TILE_SIZE) - player.width;
-
-            let collideX = false;
-            // Check top, middle, and bottom of player for wall collision
-            const checkPoints = [0, player.height/2, player.height-1];
-            for (let offset of checkPoints) {
-                if (getTileAt(nextX, player.y + offset) !== TILES.AIR || 
-                    getTileAt(nextX + player.width, player.y + offset) !== TILES.AIR) {
-                    collideX = true; break;
+            if (nextX < 0) nextX = 0; if (nextX > (COLS * TILE_SIZE) - player.width) nextX = (COLS * TILE_SIZE) - player.width;
+            
+            if (!checkCollision(nextX, player.y)) { player.x = nextX; } 
+            else {
+                if ((player.grounded || player.inWater) && !checkCollision(nextX, player.y - TILE_SIZE)) {
+                    player.y -= TILE_SIZE; player.x = nextX;      
                 }
             }
-            if (!collideX) player.x = nextX;
 
-            // Vertical Collision
             let nextY = player.y + player.vy;
-            if (nextY > ROWS * TILE_SIZE) { // Void Respawn
-                player.y = 0; player.vy = 0; nextY = 0; 
-            }
+            if (nextY > ROWS * TILE_SIZE) { player.y = 0; player.vy = 0; nextY = 0; }
 
-            if (player.vy > 0) { // Falling
-                if (getTileAt(player.x, nextY + player.height) !== TILES.AIR || 
-                    getTileAt(player.x + player.width, nextY + player.height) !== TILES.AIR) {
-                    player.vy = 0;
-                    player.grounded = true;
+            if (player.vy > 0) { 
+                if (checkCollision(player.x, nextY)) {
+                    player.vy = 0; player.grounded = true;
                     player.y = Math.floor((nextY + player.height) / TILE_SIZE) * TILE_SIZE - player.height;
-                } else {
-                    player.y = nextY;
-                }
-            } else if (player.vy < 0) { // Jumping
-                 if (getTileAt(player.x, nextY) !== TILES.AIR || 
-                    getTileAt(player.x + player.width, nextY) !== TILES.AIR) {
-                     player.vy = 0;
-                     player.y = nextY; 
-                 } else {
-                     player.y = nextY;
-                 }
+                } else { player.y = nextY; }
+            } else if (player.vy < 0) { 
+                 if (checkCollision(player.x, nextY, true)) { player.vy = 0; } else { player.y = nextY; }
             }
 
-            // Camera Smoothing
             camera.x += (player.x - canvas.width / 2 - camera.x) * 0.1;
             camera.y += (player.y - canvas.height / 2 - camera.y) * 0.1;
         }
 
-        // --- RENDERING ---
+        function checkCollision(x, y, headCheck=false) {
+            let startX = Math.floor(x / TILE_SIZE);
+            let endX = Math.floor((x + player.width - 0.1) / TILE_SIZE);
+            let startY = Math.floor(y / TILE_SIZE);
+            let endY = Math.floor((y + player.height - 0.1) / TILE_SIZE);
+            if (headCheck) endY = startY;
+
+            for (let r = startY; r <= endY; r++) {
+                for (let c = startX; c <= endX; c++) {
+                    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                        let t = world[r][c];
+                        if (t !== TILES.AIR && t !== TILES.WATER) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // --- RENDER ---
         function getLightColor(tileType, row) {
+            if (tileType === TILES.WATER) return 'rgba(52, 152, 219, 0.6)'; 
             const base = BASE_COLORS[tileType];
-            let depth = Math.max(0, row - 20);
-            let lightness = Math.max(10, base[2] - (depth * 1.5));
+            if (!base) return 'red';
+
+            let depth = Math.max(0, row - 15); 
+            let lightness = Math.max(5, base[2] - (depth * 0.8));
+            
             return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
         }
 
@@ -298,7 +391,6 @@
             ctx.fillStyle = getLightColor(tileType, r);
             ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-            // Procedural Details (Noise)
             if (tileType === TILES.DIRT || tileType === TILES.GRASS) {
                 ctx.fillStyle = "rgba(0,0,0,0.15)";
                 for(let i=0; i<3; i++) {
@@ -308,41 +400,41 @@
                 }
             }
             if (tileType === TILES.GRASS) {
-                ctx.fillStyle = "#2ecc71"; // Bright green top
+                ctx.fillStyle = getLightColor(TILES.GRASS, r-5);
                 ctx.fillRect(x, y, TILE_SIZE, 6);
             }
             if (tileType === TILES.STONE) {
                 ctx.fillStyle = "rgba(255,255,255,0.05)";
                 if (pseudoRandom(c,r) > 0.5) ctx.fillRect(x+4, y+4, 10, 2);
             }
+            if (tileType === TILES.SAND) {
+                ctx.fillStyle = "rgba(0,0,0,0.1)";
+                ctx.fillRect(x+4, y+4, 2, 2); ctx.fillRect(x+20, y+10, 2, 2);
+            }
         }
 
         function drawPlayer() {
-            // Body
-            ctx.fillStyle = '#e74c3c'; 
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            // Head
-            ctx.fillStyle = '#f1c40f';
-            ctx.fillRect(player.x, player.y, player.width, 14);
-            // Face
-            ctx.fillStyle = '#333';
-            let eyeX = player.facingRight ? player.x + 12 : player.x + 4;
+            ctx.fillStyle = '#e74c3c'; ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.fillStyle = '#f1c40f'; ctx.fillRect(player.x, player.y, player.width, 12); 
+            ctx.fillStyle = '#000'; 
+            let eyeX = player.facingRight ? player.x + 14 : player.x + 2;
             ctx.fillRect(eyeX, player.y + 4, 4, 4);
+            
+            if (player.inWater) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillRect(player.x - 4, player.y + 10, 4, 4);
+                ctx.fillRect(player.x + player.width + 2, player.y + 30, 3, 3);
+            }
         }
 
         function draw() {
-            // Sky Gradient
-            let gradient = ctx.createLinearGradient(0, -camera.y, 0, (ROWS*TILE_SIZE) - camera.y);
-            gradient.addColorStop(0, "#87CEEB");
-            gradient.addColorStop(0.4, "#C0E6F5");
-            gradient.addColorStop(1, "#1a252f");
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            let grad = ctx.createLinearGradient(0, -camera.y, 0, (ROWS*TILE_SIZE) - camera.y);
+            grad.addColorStop(0, "#87CEEB"); grad.addColorStop(0.5, "#bdc3c7"); grad.addColorStop(1, "#1a252f");
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
             ctx.translate(Math.round(-camera.x), Math.round(-camera.y));
 
-            // Draw World
             let startCol = Math.floor(camera.x / TILE_SIZE) - 2;
             let endCol = startCol + (canvas.width / TILE_SIZE) + 4;
             let startRow = Math.floor(camera.y / TILE_SIZE) - 2;
@@ -355,23 +447,23 @@
                     }
                 }
             }
-
             drawPlayer();
-
-            // Highlight Cursor
-            if(mouseTile.c >= 0) {
-                 ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-                 ctx.lineWidth = 2;
-                 ctx.strokeRect(mouseTile.c * TILE_SIZE, mouseTile.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            if (mouseTile.c >= 0) {
+                ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 2;
+                ctx.strokeRect(mouseTile.c*TILE_SIZE, mouseTile.r*TILE_SIZE, TILE_SIZE, TILE_SIZE);
             }
-
             ctx.restore();
             requestAnimationFrame(loop);
         }
 
-        function loop() { update(); draw(); }
+        function loop() {
+            tickCount++;
+            updatePlayer();
+            if (tickCount % 2 === 0) updateCellularAutomata();
+            draw();
+        }
 
-        // --- INTERACTION ---
+        // --- CONTROLS ---
         function updateHUD() {
             const toolDiv = document.getElementById('tool-display');
             toolDiv.innerText = mode === 'MINE' ? "⛏️ MINING" : "🧱 BUILDING";
@@ -379,85 +471,66 @@
 
             const invBar = document.getElementById('inventory-bar');
             invBar.innerHTML = '';
-            [1, 2, 3].forEach(id => {
+            const displayOrder = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WATER];
+
+            displayOrder.forEach(id => {
                 const slot = document.createElement('div');
-                slot.className = 'inv-slot slot-icon-' + id + (selectedBlock === id ? ' selected' : '');
+                slot.className = 'inv-slot icon-' + id + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`;
                 slot.onclick = () => { selectedBlock = id; mode = 'BUILD'; updateHUD(); };
                 invBar.appendChild(slot);
             });
         }
 
-        // Keys
         const keys = {};
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
-            // Left (A or ArrowLeft)
-            if (e.code === 'KeyA' || e.code === 'ArrowLeft') player.vx = -PLAYER_SPEED;
-            // Right (D or ArrowRight)
-            if (e.code === 'KeyD' || e.code === 'ArrowRight') player.vx = PLAYER_SPEED;
-            // Jump (Space, W, or ArrowUp)
-            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') { 
-                if (player.grounded) player.vy = -JUMP_FORCE; 
-            }
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
-            if (e.key === '1') { selectedBlock = TILES.DIRT; mode = 'BUILD'; updateHUD(); }
-            if (e.key === '2') { selectedBlock = TILES.GRASS; mode = 'BUILD'; updateHUD(); }
-            if (e.key === '3') { selectedBlock = TILES.STONE; mode = 'BUILD'; updateHUD(); }
-        });
-        
-        window.addEventListener('keyup', e => {
-            keys[e.code] = false;
-            // Stop logic handles both WASD and Arrows
-            if (((e.code === 'KeyA' || e.code === 'ArrowLeft') && player.vx < 0) || 
-                ((e.code === 'KeyD' || e.code === 'ArrowRight') && player.vx > 0)) {
-                player.vx = 0;
+            if (e.key >= '1' && e.key <= '6') {
+                const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WATER];
+                if (map[e.key]) { selectedBlock = map[e.key]; mode = 'BUILD'; updateHUD(); }
             }
         });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-        // Mouse/Touch
         canvas.addEventListener('mousemove', e => {
-            const rect = canvas.getBoundingClientRect();
-            mouseTile.c = Math.floor((e.clientX - rect.left + camera.x) / TILE_SIZE);
-            mouseTile.r = Math.floor((e.clientY - rect.top + camera.y) / TILE_SIZE);
+            const r = canvas.getBoundingClientRect();
+            mouseTile.c = Math.floor((e.clientX - r.left + camera.x) / TILE_SIZE);
+            mouseTile.r = Math.floor((e.clientY - r.top + camera.y) / TILE_SIZE);
         });
-
         canvas.addEventListener('mousedown', e => {
-            const c = mouseTile.c;
-            const r = mouseTile.r;
-            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                // Check if clicking near player (optional anti-stuck)
-                const pRect = {l: player.x, r: player.x+player.width, t: player.y, b:player.y+player.height};
-                const tRect = {l: c*TILE_SIZE, r: (c+1)*TILE_SIZE, t: r*TILE_SIZE, b:(r+1)*TILE_SIZE};
-                const intersect = pRect.l < tRect.r && pRect.r > tRect.l && pRect.t < tRect.b && pRect.b > tRect.t;
-
-                if (mode === 'MINE') {
-                    if (world[r][c] !== TILES.AIR) { inventory[world[r][c]]++; world[r][c] = TILES.AIR; updateHUD(); }
-                } else if (!intersect && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
-                    world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
-                }
+            const c = mouseTile.c, r = mouseTile.r;
+            if (r>=0 && r<ROWS && c>=0 && c<COLS) {
+                 if (mode === 'MINE') {
+                    if (world[r][c] !== TILES.AIR) { 
+                        inventory[world[r][c]]++; world[r][c] = TILES.AIR; updateHUD(); 
+                    }
+                 } else {
+                     let pC = Math.floor((player.x+10)/TILE_SIZE);
+                     let pR = Math.floor((player.y+20)/TILE_SIZE);
+                     if ((c !== pC || r !== pR) && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
+                         world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
+                     }
+                 }
             }
         });
-
-        // Window Resize
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
-        // --- SAVE SYSTEM ---
-        const SAVE_KEY = 'vivaria_save_v1';
-
+        function openModal() { document.getElementById('modal-overlay').style.display = 'flex'; }
+        function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+        function confirmNewWorld(w, h) {
+            initWorld(w, h); inventory = {}; Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; }); closeModal();
+        }
         function saveGame() {
-            localStorage.setItem(SAVE_KEY, JSON.stringify({ world, player, inventory }));
-            alert("Vivaria Saved!");
+            localStorage.setItem('vivaria_v8', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
         }
         function loadGame() {
-            const data = JSON.parse(localStorage.getItem(SAVE_KEY));
-            if (data) { world = data.world; player = data.player; inventory = data.inventory || inventory; updateHUD(); alert("Vivaria Loaded!"); }
-             else alert("No saved world found.");
+            const data = JSON.parse(localStorage.getItem('vivaria_v8'));
+            if (data) { COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Loaded!"); }
         }
-        function resetWorld() { if(confirm("Create new world?")) { initWorld(); player.x=300; player.y=100; inventory={1:0,2:0,3:0}; updateHUD(); }}
 
-        // Boot
-        initWorld();
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        initWorld(COLS, ROWS);
         loop();
     </script>
 </body>
