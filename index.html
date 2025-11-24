@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vivaria</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pixel-font: 'Press Start 2P', cursive;
+            --ui-bg: rgba(20, 20, 30, 0.85);
+            --ui-border: #4a69bd;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: var(--pixel-font);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+        }
+
+        /* Title Style */
+        h1 {
+            margin: 0;
+            padding: 10px;
+            font-size: 24px;
+            color: #f1c40f;
+            text-shadow: 3px 3px 0 #c0392b; /* Retro shadow effect */
+            pointer-events: auto;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-panel {
+            background: var(--ui-bg);
+            padding: 15px;
+            border-radius: 4px;
+            border: 3px solid var(--ui-border);
+            pointer-events: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+
+        /* Inventory Styling */
+        #inventory-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .inv-slot {
+            width: 48px;
+            height: 48px;
+            background-color: rgba(0,0,0,0.5);
+            border: 3px solid #555;
+            position: relative;
+            cursor: pointer;
+            image-rendering: pixelated;
+            transition: transform 0.1s;
+        }
+        .inv-slot:hover { transform: scale(1.1); }
+        
+        /* Procedural Icon Textures */
+        .slot-icon-1 { background: linear-gradient(135deg, #5a3a22 25%, #3e2817 25%, #3e2817 50%, #5a3a22 50%, #5a3a22 75%, #3e2817 75%); background-size: 10px 10px; } /* Dirt */
+        .slot-icon-2 { background: linear-gradient(to bottom, #2ecc71 30%, #5a3a22 30%); } /* Grass */
+        .slot-icon-3 { background: #7f8c8d; background-image: radial-gradient(#95a5a6 20%, transparent 20%); background-size: 8px 8px; } /* Stone */
+
+        .inv-slot span {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 10px;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+        }
+        .selected { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+
+        #tool-display {
+            font-size: 12px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .controls-text {
+            margin-top: 12px;
+            font-size: 10px;
+            color: #bdc3c7;
+            line-height: 1.6;
+        }
+
+        .bottom-right {
+            align-self: flex-end;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        button {
+            font-family: var(--pixel-font);
+            background: #34495e;
+            border: 2px solid #bdc3c7;
+            color: white;
+            padding: 10px 15px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #2c3e50; border-color: #f1c40f;}
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-layer">
+        <div class="top-bar">
+            <div class="hud-panel">
+                <h1 style="font-size: 16px; margin-bottom:10px; text-shadow:none; color: #f1c40f;">VIVARIA</h1>
+                <div id="tool-display">MODE: MINING</div>
+                <div id="inventory-bar"></div>
+                <div class="controls-text">
+                    [WASD] Move/Jump<br>
+                    [E] Toggle Mode<br>
+                    [1-3] Select Block
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-right">
+            <button onclick="saveGame()">Save</button>
+            <button onclick="loadGame()">Load</button>
+            <button onclick="resetWorld()">Reset World</button>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // --- CONFIG ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const TILE_SIZE = 32;
+        const COLS = 120; // Wider world
+        const ROWS = 60;  // Deep world
+        const GRAVITY = 0.5;
+        const PLAYER_SPEED = 5;
+        const JUMP_FORCE = 12;
+
+        const TILES = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
+        
+        // HSL Colors for lighting engine
+        const BASE_COLORS = {
+            1: [25, 59, 25],  // Dirt
+            2: [130, 65, 45], // Grass
+            3: [210, 10, 45]  // Stone
+        };
+
+        // --- STATE ---
+        let world = [];
+        let player = { x: 300, y: 100, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true };
+        let camera = { x: 0, y: 0 };
+        let mouseTile = { c: -1, r: -1 };
+        
+        let inventory = { 1: 0, 2: 0, 3: 0 }; 
+        let selectedBlock = TILES.DIRT;
+        let mode = 'MINE'; 
+
+        // --- NOISE ---
+        function pseudoRandom(x, y) {
+            return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
+        }
+
+        function initWorld() {
+            world = [];
+            let surfaceLevel = 20;
+            for (let r = 0; r < ROWS; r++) {
+                let row = [];
+                for (let c = 0; c < COLS; c++) {
+                    // Generate rolling hills
+                    let hill = Math.floor(Math.sin(c * 0.1) * 3) + Math.floor(Math.sin(c * 0.5) * 1);
+                    let currentSurface = surfaceLevel + hill;
+
+                    if (r < currentSurface) row.push(TILES.AIR);
+                    else if (r === currentSurface) row.push(TILES.GRASS);
+                    else if (r > currentSurface && r < currentSurface + 12) row.push(TILES.DIRT);
+                    else row.push(TILES.STONE);
+                }
+                world.push(row);
+            }
+            // Spawn player on surface
+            player.y = (surfaceLevel - 5) * TILE_SIZE;
+            updateHUD();
+        }
+
+        // --- PHYSICS ---
+        function getTileAt(x, y) {
+            let c = Math.floor(x / TILE_SIZE);
+            let r = Math.floor(y / TILE_SIZE);
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return TILES.AIR;
+            return world[r][c];
+        }
+
+        function update() {
+            player.vy += GRAVITY;
+            player.grounded = false;
+
+            if (player.vx > 0) player.facingRight = true;
+            if (player.vx < 0) player.facingRight = false;
+
+            // Horizontal Collision
+            let nextX = player.x + player.vx;
+            if (nextX < 0) nextX = 0;
+            if (nextX > (COLS * TILE_SIZE) - player.width) nextX = (COLS * TILE_SIZE) - player.width;
+
+            let collideX = false;
+            // Check top, middle, and bottom of player for wall collision
+            const checkPoints = [0, player.height/2, player.height-1];
+            for (let offset of checkPoints) {
+                if (getTileAt(nextX, player.y + offset) !== TILES.AIR || 
+                    getTileAt(nextX + player.width, player.y + offset) !== TILES.AIR) {
+                    collideX = true; break;
+                }
+            }
+            if (!collideX) player.x = nextX;
+
+            // Vertical Collision
+            let nextY = player.y + player.vy;
+            if (nextY > ROWS * TILE_SIZE) { // Void Respawn
+                player.y = 0; player.vy = 0; nextY = 0; 
+            }
+
+            if (player.vy > 0) { // Falling
+                if (getTileAt(player.x, nextY + player.height) !== TILES.AIR || 
+                    getTileAt(player.x + player.width, nextY + player.height) !== TILES.AIR) {
+                    player.vy = 0;
+                    player.grounded = true;
+                    player.y = Math.floor((nextY + player.height) / TILE_SIZE) * TILE_SIZE - player.height;
+                } else {
+                    player.y = nextY;
+                }
+            } else if (player.vy < 0) { // Jumping
+                 if (getTileAt(player.x, nextY) !== TILES.AIR || 
+                    getTileAt(player.x + player.width, nextY) !== TILES.AIR) {
+                     player.vy = 0;
+                     player.y = nextY; 
+                 } else {
+                     player.y = nextY;
+                 }
+            }
+
+            // Camera Smoothing
+            camera.x += (player.x - canvas.width / 2 - camera.x) * 0.1;
+            camera.y += (player.y - canvas.height / 2 - camera.y) * 0.1;
+        }
+
+        // --- RENDERING ---
+        function getLightColor(tileType, row) {
+            const base = BASE_COLORS[tileType];
+            let depth = Math.max(0, row - 20);
+            let lightness = Math.max(10, base[2] - (depth * 1.5));
+            return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
+        }
+
+        function drawTile(r, c, tileType) {
+            const x = c * TILE_SIZE;
+            const y = r * TILE_SIZE;
+            
+            ctx.fillStyle = getLightColor(tileType, r);
+            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+
+            // Procedural Details (Noise)
+            if (tileType === TILES.DIRT || tileType === TILES.GRASS) {
+                ctx.fillStyle = "rgba(0,0,0,0.15)";
+                for(let i=0; i<3; i++) {
+                    let px = Math.abs(pseudoRandom(c*i, r*i)) * TILE_SIZE % TILE_SIZE;
+                    let py = Math.abs(pseudoRandom(r*i, c*i)) * TILE_SIZE % TILE_SIZE;
+                    ctx.fillRect(x + px, y + py, 4, 4);
+                }
+            }
+            if (tileType === TILES.GRASS) {
+                ctx.fillStyle = "#2ecc71"; // Bright green top
+                ctx.fillRect(x, y, TILE_SIZE, 6);
+            }
+            if (tileType === TILES.STONE) {
+                ctx.fillStyle = "rgba(255,255,255,0.05)";
+                if (pseudoRandom(c,r) > 0.5) ctx.fillRect(x+4, y+4, 10, 2);
+            }
+        }
+
+        function drawPlayer() {
+            // Body
+            ctx.fillStyle = '#e74c3c'; 
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // Head
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(player.x, player.y, player.width, 14);
+            // Face
+            ctx.fillStyle = '#333';
+            let eyeX = player.facingRight ? player.x + 12 : player.x + 4;
+            ctx.fillRect(eyeX, player.y + 4, 4, 4);
+        }
+
+        function draw() {
+            // Sky Gradient
+            let gradient = ctx.createLinearGradient(0, -camera.y, 0, (ROWS*TILE_SIZE) - camera.y);
+            gradient.addColorStop(0, "#87CEEB");
+            gradient.addColorStop(0.4, "#C0E6F5");
+            gradient.addColorStop(1, "#1a252f");
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(Math.round(-camera.x), Math.round(-camera.y));
+
+            // Draw World
+            let startCol = Math.floor(camera.x / TILE_SIZE) - 2;
+            let endCol = startCol + (canvas.width / TILE_SIZE) + 4;
+            let startRow = Math.floor(camera.y / TILE_SIZE) - 2;
+            let endRow = startRow + (canvas.height / TILE_SIZE) + 4;
+
+            for (let r = startRow; r < endRow; r++) {
+                for (let c = startCol; c < endCol; c++) {
+                    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                        if (world[r][c] !== TILES.AIR) drawTile(r, c, world[r][c]);
+                    }
+                }
+            }
+
+            drawPlayer();
+
+            // Highlight Cursor
+            if(mouseTile.c >= 0) {
+                 ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+                 ctx.lineWidth = 2;
+                 ctx.strokeRect(mouseTile.c * TILE_SIZE, mouseTile.r * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+
+            ctx.restore();
+            requestAnimationFrame(loop);
+        }
+
+        function loop() { update(); draw(); }
+
+        // --- INTERACTION ---
+        function updateHUD() {
+            const toolDiv = document.getElementById('tool-display');
+            toolDiv.innerText = mode === 'MINE' ? "⛏️ MINING" : "🧱 BUILDING";
+            toolDiv.style.color = mode === 'MINE' ? "#ff7675" : "#55efc4";
+
+            const invBar = document.getElementById('inventory-bar');
+            invBar.innerHTML = '';
+            [1, 2, 3].forEach(id => {
+                const slot = document.createElement('div');
+                slot.className = 'inv-slot slot-icon-' + id + (selectedBlock === id ? ' selected' : '');
+                slot.innerHTML = `<span>${inventory[id]}</span>`;
+                slot.onclick = () => { selectedBlock = id; mode = 'BUILD'; updateHUD(); };
+                invBar.appendChild(slot);
+            });
+        }
+
+        // Keys
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'KeyA') player.vx = -PLAYER_SPEED;
+            if (e.code === 'KeyD') player.vx = PLAYER_SPEED;
+            if (e.code === 'Space' || e.code === 'KeyW') { if (player.grounded) player.vy = -JUMP_FORCE; }
+            if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
+            if (e.key === '1') { selectedBlock = TILES.DIRT; mode = 'BUILD'; updateHUD(); }
+            if (e.key === '2') { selectedBlock = TILES.GRASS; mode = 'BUILD'; updateHUD(); }
+            if (e.key === '3') { selectedBlock = TILES.STONE; mode = 'BUILD'; updateHUD(); }
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+            if ((e.code === 'KeyA' && player.vx < 0) || (e.code === 'KeyD' && player.vx > 0)) player.vx = 0;
+        });
+
+        // Mouse/Touch
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            mouseTile.c = Math.floor((e.clientX - rect.left + camera.x) / TILE_SIZE);
+            mouseTile.r = Math.floor((e.clientY - rect.top + camera.y) / TILE_SIZE);
+        });
+
+        canvas.addEventListener('mousedown', e => {
+            const c = mouseTile.c;
+            const r = mouseTile.r;
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                // Check if clicking near player (optional anti-stuck)
+                const pRect = {l: player.x, r: player.x+player.width, t: player.y, b:player.y+player.height};
+                const tRect = {l: c*TILE_SIZE, r: (c+1)*TILE_SIZE, t: r*TILE_SIZE, b:(r+1)*TILE_SIZE};
+                const intersect = pRect.l < tRect.r && pRect.r > tRect.l && pRect.t < tRect.b && pRect.b > tRect.t;
+
+                if (mode === 'MINE') {
+                    if (world[r][c] !== TILES.AIR) { inventory[world[r][c]]++; world[r][c] = TILES.AIR; updateHUD(); }
+                } else if (!intersect && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
+                    world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
+                }
+            }
+        });
+
+        // Window Resize
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+        // --- SAVE SYSTEM ---
+        const SAVE_KEY = 'vivaria_save_v1';
+
+        function saveGame() {
+            localStorage.setItem(SAVE_KEY, JSON.stringify({ world, player, inventory }));
+            alert("Vivaria Saved!");
+        }
+        function loadGame() {
+            const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+            if (data) { world = data.world; player = data.player; inventory = data.inventory || inventory; updateHUD(); alert("Vivaria Loaded!"); }
+             else alert("No saved world found.");
+        }
+        function resetWorld() { if(confirm("Create new world?")) { initWorld(); player.x=300; player.y=100; inventory={1:0,2:0,3:0}; updateHUD(); }}
+
+        // Boot
+        initWorld();
+        loop();
+    </script>
+</body>
+</html>
