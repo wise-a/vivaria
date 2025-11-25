@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v3.5 - Permeable Fluids</title>
+    <title>Vivaria v4.0 - Adventure Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -65,6 +65,7 @@
         .icon-10 { background: #ffeb3b; border: 1px solid gold; } 
         .icon-11 { background: #e3f2fd; } 
         .icon-12 { background: #a1887f; border: 1px solid #5d4037; } 
+        .icon-13 { background: #b3e5fc; border: 2px solid #00bcd4; } /* Diamond */
         .icon-20 { background: radial-gradient(circle, red, green); } 
 
         #modal-overlay {
@@ -80,14 +81,18 @@
         }
         .size-btn:hover { background: var(--highlight); color: black; }
 
+        .btn-group { display:flex; gap: 5px; margin-top: 5px;}
         button {
             font-family: var(--pixel-font); background: #34495e; border: 2px solid #bdc3c7;
-            color: white; padding: 10px 15px; font-size: 10px; cursor: pointer; margin-left: 5px;
+            color: white; padding: 10px 15px; font-size: 10px; cursor: pointer;
         }
         button:hover { background: #2c3e50; border-color: var(--highlight); }
 
-        .craft-btn { background: #d35400; border-color: #e67e22; width: 100%; margin-top:5px; margin-left: 0;}
+        .craft-btn { background: #d35400; border-color: #e67e22; width: 100%; margin-top:5px; }
         .craft-btn:hover { background: #e67e22; }
+
+        /* File Input Hidden */
+        #file-input { display: none; }
 
         canvas { display: block; cursor: crosshair; }
         ::-webkit-scrollbar { width: 5px; }
@@ -109,7 +114,7 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v3.5</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.0</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
@@ -117,15 +122,20 @@
                 <div style="font-size: 10px; color: #bdc3c7; line-height: 1.6;">
                     [Arrows] Move<br>[Space] Jump<br>[E] Mode<br>[C] Craft Planks
                 </div>
-                <div style="margin-top:10px;">
-                    <button class="craft-btn" onclick="craftPlanks()">Craft Planks</button>
-                </div>
+                <button class="craft-btn" onclick="craftPlanks()">Craft Planks</button>
             </div>
         </div>
-        <div style="align-self: flex-end; pointer-events: auto;">
-            <button onclick="saveGame()">Save</button>
-            <button onclick="loadGame()">Load</button>
-            <button onclick="openModal()">New World</button>
+        <div style="align-self: flex-end; pointer-events: auto; display: flex; flex-direction: column; align-items: flex-end;">
+            <div class="btn-group">
+                <button onclick="saveGame()">Save Browser</button>
+                <button onclick="loadGame()">Load Browser</button>
+                <button onclick="openModal()">New World</button>
+            </div>
+            <div class="btn-group">
+                <button onclick="exportSave()" style="border-color: #27ae60;">Export File</button>
+                <button onclick="document.getElementById('file-input').click()" style="border-color: #2980b9;">Import File</button>
+                <input type="file" id="file-input" accept=".json" onchange="importSave(this)">
+            </div>
         </div>
     </div>
     
@@ -148,13 +158,13 @@
         
         const TILES = { 
             AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6,
-            WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12
+            WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12, DIAMOND_ORE: 13
         };
 
         const BASE_COLORS = {
             1: [28, 45, 30], 2: [100, 60, 35], 3: [210, 10, 50], 4: [45, 90, 60], 
             6: [20, 35, 25], 7: [30, 55, 30], 8: [120, 50, 35], 9: [0, 0, 20], 
-            10: [50, 100, 50], 11: [200, 30, 90], 12: [35, 50, 50]
+            10: [50, 100, 50], 11: [200, 30, 90], 12: [35, 50, 50], 13: [180, 80, 60]
         };
         
         let world = [];
@@ -164,17 +174,17 @@
         let inventory = {}; 
         Object.values(TILES).forEach(v => { if(v !== 0) inventory[v] = 0; });
         for(let i=20; i<=34; i++) inventory[i] = 0; 
+        
         let selectedBlock = TILES.DIRT;
         let mode = 'MINE'; 
         let tickCount = 0;
+        let worldSeed = Math.random() * 10000; // Random seed for terrain
 
         function pseudoRandom(x, y) {
             return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
         }
 
-        // --- HELPERS FOR PHYSICS/LOGIC ---
         function isPermeable(tile) {
-            // Things water can flow "through" (tunnel past)
             return tile === TILES.WOOD || tile === TILES.LEAVES || (tile >= 20 && tile <= 34);
         }
 
@@ -189,19 +199,25 @@
         function initWorld(w, h) {
             COLS = w; ROWS = h;
             world = [];
+            worldSeed = Math.random() * 10000; // New random seed
             let surfaceLevel = Math.floor(ROWS * 0.35);
             let heights = new Array(COLS).fill(0);
 
             for (let r = 0; r < ROWS; r++) {
                 let row = [];
                 for (let c = 0; c < COLS; c++) {
-                    let heightNoise = Math.sin(c * 0.04) * 5 + Math.sin(c * 0.1) * 2;
+                    // Randomize terrain using worldSeed offset
+                    let cx = c + worldSeed; 
+                    
+                    // Height Map
+                    let heightNoise = Math.sin(cx * 0.04) * 5 + Math.sin(cx * 0.1) * 2;
                     let actualSurface = Math.floor(surfaceLevel + heightNoise);
                     if (r === 0) heights[c] = actualSurface;
 
-                    let biomeNoise = Math.sin(c * 0.015) + (Math.sin(c * 0.05) * 0.1); 
+                    // Biome Map
+                    let biomeNoise = Math.sin(cx * 0.015) + (Math.sin(cx * 0.05) * 0.1); 
+                    
                     let surfaceBlock, subBlock;
-
                     if (biomeNoise > 0.4 && biomeNoise < 0.6) {
                         if (Math.random() > 0.5) { surfaceBlock = TILES.SAND; subBlock = TILES.SAND; }
                         else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
@@ -223,8 +239,11 @@
                     } else if (r > actualSurface && r < actualSurface + 15) {
                         row.push(subBlock);
                     } else {
-                        if (Math.random() < 0.015) row.push(TILES.COAL_ORE);
-                        else if (Math.random() < 0.005 && r > actualSurface + 25) row.push(TILES.GOLD_ORE);
+                        // Ore Generation
+                        let rand = Math.random();
+                        if (rand < 0.015) row.push(TILES.COAL_ORE);
+                        else if (rand < 0.018 && r > actualSurface + 25) row.push(TILES.GOLD_ORE);
+                        else if (rand < 0.019 && r > ROWS - 15) row.push(TILES.DIAMOND_ORE); // Deep diamonds
                         else row.push(TILES.STONE);
                     }
                 }
@@ -309,7 +328,7 @@
             }
         }
 
-        // --- FLUID SIM (UPDATED FOR PERMEABILITY) ---
+        // --- FLUID SIM ---
         function updateCellularAutomata() {
             let startC = tickCount % 2 === 0 ? 0 : COLS - 1;
             let endC = tickCount % 2 === 0 ? COLS : -1;
@@ -319,14 +338,15 @@
                 for (let c = startC; c !== endC; c += step) {
                     let tile = world[r][c];
 
-                    if (tile >= 20 && tile <= 34) { // Flowers break if floating
+                    if (tile >= 20 && tile <= 34) { 
                         let below = world[r+1][c];
-                        if (below === TILES.AIR || below === TILES.WATER) world[r][c] = TILES.AIR;
+                        if (below === TILES.AIR || below === TILES.WATER) {
+                            world[r][c] = TILES.AIR; // Break if no support
+                        }
                         continue;
                     }
 
                     if (tile === TILES.SAND) {
-                        // Standard Sand Falling
                         if (world[r+1][c] === TILES.AIR || world[r+1][c] === TILES.WATER) {
                             world[r][c] = world[r+1][c]; world[r+1][c] = TILES.SAND;
                         } else if (world[r+1][c-1] === TILES.AIR && world[r][c-1] === TILES.AIR) {
@@ -337,7 +357,6 @@
                     }
                     
                     if (tile === TILES.WATER) {
-                        // Check Erosion
                         if (r + 1 < ROWS) {
                             let below = world[r+1][c];
                             if ((below === TILES.DIRT || below === TILES.GRASS) && Math.random() < 0.005) {
@@ -345,26 +364,28 @@
                             }
                         }
 
-                        // --- NEW PERMEABLE FLOW LOGIC ---
-                        // 1. Try Move Down
+                        // Try Move Down
                         let down = world[r+1][c];
                         if (down === TILES.AIR) {
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
+                        } else if (down >= 20 && down <= 34) {
+                            // DESTROY FLOWER
+                            inventory[down]++; 
+                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; updateHUD(); continue;
                         } else if (isPermeable(down)) {
-                            // Try tunnel through vegetation
                             if (r+2 < ROWS && world[r+2][c] === TILES.AIR) {
                                 world[r][c] = TILES.AIR; world[r+2][c] = TILES.WATER; continue;
                             }
                         }
 
-                        // 2. Try Move Sideways
+                        // Try Move Sideways
                         let left = (c > 0) ? world[r][c-1] : -1;
                         let right = (c < COLS-1) ? world[r][c+1] : -1;
                         
-                        let canLeft = (left === TILES.AIR);
-                        let canRight = (right === TILES.AIR);
+                        let canLeft = (left === TILES.AIR || (left >= 20 && left <= 34));
+                        let canRight = (right === TILES.AIR || (right >= 20 && right <= 34));
                         
-                        // Check permeability sideways
+                        // Permeable Sideways
                         if (!canLeft && isPermeable(left) && c > 1 && world[r][c-2] === TILES.AIR) canLeft = true; 
                         if (!canRight && isPermeable(right) && c < COLS-2 && world[r][c+2] === TILES.AIR) canRight = true;
 
@@ -382,23 +403,18 @@
 
         function tryMoveWater(r, c, targetR, targetC) {
             let target = world[targetR][targetC];
-            // Direct Move
             if (target === TILES.AIR) {
                 world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
             } 
-            // Tunnel Move (skip 1 block)
+            else if (target >= 20 && target <= 34) { // Wash away flower
+                inventory[target]++; updateHUD();
+                world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
+            }
             else if (isPermeable(target)) {
-                // Calculate "next" block in that direction
-                let dirR = targetR - r;
                 let dirC = targetC - c;
-                let nextR = targetR + dirR;
                 let nextC = targetC + dirC;
-                
-                if (nextR >= 0 && nextR < ROWS && nextC >= 0 && nextC < COLS) {
-                    if (world[nextR][nextC] === TILES.AIR) {
-                        world[r][c] = TILES.AIR;
-                        world[nextR][nextC] = TILES.WATER;
-                    }
+                if (nextC >= 0 && nextC < COLS && world[targetR][nextC] === TILES.AIR) {
+                    world[r][c] = TILES.AIR; world[targetR][nextC] = TILES.WATER;
                 }
             }
         }
@@ -508,7 +524,10 @@
             if (!base) return 'magenta';
 
             let depth = Math.max(0, row - 10);
-            let lightness = Math.max(35, base[2] - (depth * 0.4));
+            // ADAPTIVE LIGHTING: Slower decay for deeper worlds
+            let decay = 25 / ROWS; 
+            let lightness = Math.max(25, base[2] - (depth * decay));
+            
             return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
         }
 
@@ -522,7 +541,8 @@
             }
 
             let depth = Math.max(0, r - 15);
-            let shade = Math.min(0.75, depth * 0.015); 
+            let decay = 1.0 / ROWS; // Adaptive shadow
+            let shade = Math.min(0.75, depth * decay); 
 
             function fill(color) {
                 ctx.fillStyle = color;
@@ -533,6 +553,7 @@
                 }
             }
 
+            // TEXTURES (Same as before, plus Diamond)
             if (tileType === TILES.DIRT) {
                 fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
@@ -581,6 +602,10 @@
             else if (tileType === TILES.GOLD_ORE) {
                 drawTile(r, c, TILES.STONE); ctx.fillStyle = "#ffeb3b";
                 ctx.fillRect(x+10, y+10, 8, 8); ctx.fillRect(x+20, y+20, 4, 4);
+            }
+            else if (tileType === TILES.DIAMOND_ORE) {
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#00e5ff"; // Cyan
+                ctx.fillRect(x+10, y+8, 6, 6); ctx.fillRect(x+18, y+20, 4, 4); ctx.fillRect(x+6, y+20, 4, 4);
             }
         }
 
@@ -662,7 +687,7 @@
             const invBar = document.getElementById('inventory-bar');
             invBar.innerHTML = '';
             
-            const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW, TILES.COAL_ORE, TILES.GOLD_ORE];
+            const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW, TILES.COAL_ORE, TILES.GOLD_ORE, TILES.DIAMOND_ORE];
             for(let i=20; i<=34; i++) { if(inventory[i]>0) showList.push(i); }
 
             showList.forEach(id => {
@@ -685,8 +710,8 @@
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
             if (e.code === 'KeyC') { craftPlanks(); }
             if (e.key >= '1' && e.key <= '9') {
-                const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW];
-                if (map[e.key]) { selectedBlock = map[e.key]; mode = 'BUILD'; updateHUD(); }
+                // Just basic block selection for first 9
+                // HUD clicking handles the rest
             }
         });
         window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -715,16 +740,45 @@
         });
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
+        // --- EXPORT / IMPORT ---
+        function exportSave() {
+            const data = { world, player, inventory, COLS, ROWS };
+            const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "vivaria_save.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importSave(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory;
+                    updateHUD();
+                    alert("World Imported Successfully!");
+                } catch(err) {
+                    alert("Invalid Save File");
+                }
+            };
+            reader.readAsText(file);
+        }
+
         function openModal() { document.getElementById('modal-overlay').style.display = 'flex'; }
         function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
         function confirmNewWorld(w, h) {
             initWorld(w, h); inventory = {}; Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; }); closeModal();
         }
         function saveGame() {
-            localStorage.setItem('vivaria_v15', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
+            localStorage.setItem('vivaria_v16', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
         }
         function loadGame() {
-            const data = JSON.parse(localStorage.getItem('vivaria_v15'));
+            const data = JSON.parse(localStorage.getItem('vivaria_v16'));
             if (data) { COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Loaded!"); }
         }
 
