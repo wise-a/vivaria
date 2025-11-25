@@ -654,6 +654,7 @@
                 player.vy += WATER_GRAVITY; player.vy *= WATER_DRAG; player.vx *= WATER_DRAG; 
             } else { player.vy += GRAVITY; }
             
+            player.grounded = false;
             if (player.vx > 0) player.facingRight = true;
             if (player.vx < 0) player.facingRight = false;
 
@@ -666,8 +667,6 @@
                     player.y -= TILE_SIZE; player.x = nextX;      
                 }
             }
-
-            player.grounded = false;
 
             let nextY = player.y + player.vy;
             if (nextY > ROWS * TILE_SIZE) { player.y = 0; player.vy = 0; nextY = 0; }
@@ -945,17 +944,9 @@
                         world[r][c] = TILES.AIR; updateHUD(); 
                     }
                  } else {
-                     // Check intersection with player
-                     let tileX = c * TILE_SIZE;
-                     let tileY = r * TILE_SIZE;
-                     let intersect = (
-                         player.x < tileX + TILE_SIZE &&
-                         player.x + player.width > tileX &&
-                         player.y < tileY + TILE_SIZE &&
-                         player.y + player.height > tileY
-                     );
-
-                     if (!intersect && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
+                     let pC = Math.floor((player.x+10)/TILE_SIZE);
+                     let pR = Math.floor((player.y+20)/TILE_SIZE);
+                     if ((c !== pC || r !== pR) && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
                          world[r][c] = selectedBlock; inventory[selectedBlock]--; 
                          if(channel) broadcastBlock(r, c, selectedBlock);
                          updateHUD();
@@ -968,11 +959,7 @@
         function openModal() { document.getElementById('modal-overlay').style.display = 'flex'; }
         function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
         function confirmNewWorld(w, h) {
-            initWorld(w, h);
-            inventory = {};
-            Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; });
-            for(let i=20; i<=34; i++) inventory[i] = 0;
-            closeModal();
+            initWorld(w, h); inventory = {}; Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; }); closeModal();
         }
         function saveGame() {
             localStorage.setItem('vivaria_v18', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
