@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v6.8 - Compact UI</title>
+    <title>Vivaria v6.8.1 - UI Fix</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -33,14 +33,14 @@
         }
 
         .hud-panel {
-            background: var(--ui-bg); padding: 15px;
+            background: var(--ui-bg); padding: 12px; /* Reduced padding slightly */
             border-radius: 4px; border: 3px solid var(--ui-border);
             pointer-events: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.6);
         }
 
         #inventory-bar { 
             display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; 
-            max-width: 500px; max-height: 100px; overflow-y: auto;
+            max-width: 500px; max-height: 150px; overflow-y: auto;
         }
         .inv-slot {
             width: 30px; height: 30px; background-color: rgba(0,0,0,0.5);
@@ -147,9 +147,9 @@
     </div>
 
     <div id="ui-layer">
-        <div class="top-bar" style="display:flex; justify-content:space-between;">
+        <div class="top-bar" style="display:flex; justify-content:space-between; align-items: flex-start;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.8</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.8.1</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
