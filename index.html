@@ -141,7 +141,8 @@
     <div id="lan-overlay">
         <div class="modal-box">
             <h2 style="color: #27ae60; margin-bottom: 20px;">MULTIPLAYER</h2>
-            <button class="size-btn" onclick="connectToSupabase()">JOIN GLOBAL ROOM</button>
+            <button id="btn-join" class="size-btn" onclick="connectToSupabase()">JOIN GLOBAL ROOM</button>
+            <button id="btn-leave" class="size-btn" style="background:#c0392b; display:none;" onclick="disconnectFromSupabase()">LEAVE GLOBAL ROOM</button>
             
             <div style="margin-top: 20px; border-top: 1px solid #777; padding-top: 10px;">
                 <p style="color: var(--admin-color); font-size: 10px; cursor: pointer;" onclick="toggleAdminAuth()">[ ADMIN ACCESS ]</p>
@@ -261,7 +262,17 @@
         }
 
         // --- ADMIN & NETWORKING FUNCTIONS ---
-        function openLanMenu() { document.getElementById('lan-overlay').style.display = 'flex'; updatePlayerList(); }
+        function openLanMenu() {
+            document.getElementById('lan-overlay').style.display = 'flex';
+            updatePlayerList();
+            if (channel) {
+                document.getElementById('btn-join').style.display = 'none';
+                document.getElementById('btn-leave').style.display = 'block';
+            } else {
+                document.getElementById('btn-join').style.display = 'block';
+                document.getElementById('btn-leave').style.display = 'none';
+            }
+        }
         function toggleAdminAuth() { document.getElementById('admin-auth').style.display = 'block'; }
         
         async function loginAdmin() {
@@ -364,6 +375,20 @@
                     });
 
             } catch (err) { console.error(err); alert("Connection failed."); }
+        }
+
+        async function disconnectFromSupabase() {
+            if (supabase) {
+                await supabase.removeAllChannels();
+                supabase = null;
+            }
+            channel = null;
+            otherPlayers = {};
+            isAdmin = false;
+            document.getElementById('admin-panel').style.display = 'none';
+            document.getElementById('admin-auth').style.display = 'none';
+            alert("Disconnected from multiplayer.");
+            document.getElementById('lan-overlay').style.display = 'none';
         }
 
         function broadcastMove() {
