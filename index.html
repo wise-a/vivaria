@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v4.1 - Gardening Update</title>
+    <title>Vivaria v4.3 - Texture Overhaul</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -52,22 +52,66 @@
         }
         .selected { border-color: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
 
-        /* HUD Icons */
-        .icon-1 { background: #5d4037; } 
-        .icon-2 { background: linear-gradient(#4caf50, #5d4037); } 
-        .icon-3 { background: #78909c; } 
-        .icon-4 { background: #fdd835; } 
-        .icon-5 { background: #29b6f6; } 
-        .icon-6 { background: #3e2723; } 
-        .icon-7 { background: #795548; } 
-        .icon-8 { background: #2e7d32; } 
-        .icon-9 { background: #212121; border: 1px dashed #555; } 
-        .icon-10 { background: #ffeb3b; border: 1px solid gold; } 
-        .icon-11 { background: #e3f2fd; } 
-        .icon-12 { background: #a1887f; border: 1px solid #5d4037; } 
-        .icon-13 { background: #b3e5fc; border: 2px solid #00bcd4; } 
-        /* Flower Icons */
-        .icon-flower { background: radial-gradient(circle, #ff4081, #2e7d32); }
+        /* --- NEW TEXTURE ICONS (CSS PIXEL ART) --- */
+        
+        /* Protected Textures (Unchanged) */
+        .icon-1 { background: #5d4037; } /* Dirt */
+        .icon-2 { background: linear-gradient(#4caf50, #5d4037); } /* Grass */
+        .icon-8 { background: #2e7d32; } /* Leaves */
+        .icon-11 { background: #e3f2fd; } /* Snow */
+
+        /* New Textures */
+        .icon-3 { /* Stone: Bricks */
+            background-color: #78909c;
+            background-image: linear-gradient(335deg, rgba(0,0,0,0.3) 23px, transparent 23px),
+            linear-gradient(155deg, rgba(0,0,0,0.3) 23px, transparent 23px),
+            linear-gradient(335deg, rgba(0,0,0,0.3) 23px, transparent 23px),
+            linear-gradient(155deg, rgba(0,0,0,0.3) 23px, transparent 23px);
+            background-size: 18px 18px;
+            background-position: 0px 2px, 4px 35px, 29px 31px, 34px 6px;
+        }
+        .icon-4 { /* Sand: Granular Noise */
+            background-color: #fdd835;
+            background-image: radial-gradient(#fbc02d 15%, transparent 16%),
+            radial-gradient(#f57f17 15%, transparent 16%);
+            background-size: 8px 8px;
+            background-position: 0 0, 4px 4px;
+        }
+        .icon-5 { /* Water: Waves */
+            background-color: #29b6f6;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.3) 5px, rgba(255,255,255,0.3) 10px);
+        }
+        .icon-6 { /* Mud: Dark & Gloopy */
+            background-color: #3e2723;
+            background-image: radial-gradient(circle at 50% 50%, #4e342e 2px, transparent 2.5px);
+            background-size: 12px 12px;
+        }
+        .icon-7 { /* Wood: Vertical Bark */
+            background-color: #5d4037;
+            background-image: repeating-linear-gradient(90deg, transparent, transparent 4px, #3e2723 4px, #3e2723 8px);
+        }
+        .icon-12 { /* Planks: Horizontal Boards */
+            background-color: #a1887f;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 8px, #5d4037 8px, #5d4037 10px);
+            border: 2px solid #5d4037;
+        }
+        
+        /* Ores: Stone + Gems */
+        .ore-base {
+            background-color: #546e7a;
+            position: relative;
+        }
+        .ore-base::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(circle, var(--gem-color) 20%, transparent 25%);
+            background-size: 12px 12px;
+            background-position: 4px 4px;
+        }
+        .icon-9 { --gem-color: #000; } /* Coal */
+        .icon-10 { --gem-color: #ffd700; } /* Gold */
+        .icon-13 { --gem-color: #00e5ff; } /* Diamond */
+
+        .icon-flower { background: radial-gradient(circle, #ff4081, #2e7d32); border-radius: 50%; transform: scale(0.8); }
 
         #modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -114,7 +158,7 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.1</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.3</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
@@ -316,7 +360,6 @@
                     for (let r = ROWS - 2; r >= 0; r--) {
                         let tile = world[r][c];
                         let isTerrain = (tile === TILES.DIRT || tile === TILES.GRASS || tile === TILES.STONE || tile === TILES.MUD || tile === TILES.SAND || tile === TILES.SNOW);
-                        // Flowers are allowed to stay if supported by any non-air/non-water
                         if (isTerrain && world[r+1][c] === TILES.AIR) world[r][c] = TILES.AIR;
                     }
                 }
@@ -333,13 +376,10 @@
                 for (let c = startC; c !== endC; c += step) {
                     let tile = world[r][c];
 
-                    // Flower Physics
                     if (tile >= 20 && tile <= 34) { 
                         let below = world[r+1][c];
-                        // Break if AIR or WATER is below. 
-                        // NOTE: Leaves (8), Wood (7), Dirt (1) are valid supports.
                         if (below === TILES.AIR || below === TILES.WATER) {
-                            world[r][c] = TILES.AIR; // Pop
+                            world[r][c] = TILES.AIR; 
                         }
                         continue;
                     }
@@ -367,7 +407,6 @@
                         if (down === TILES.AIR) {
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (down >= 20 && down <= 34) {
-                            // Wash Flower
                             inventory[down]++; updateHUD();
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (isPermeable(down)) {
@@ -520,9 +559,15 @@
             const base = BASE_COLORS[tileType];
             if (!base) return 'magenta';
 
-            let depth = Math.max(0, row - 10);
-            let decay = 25 / ROWS; 
-            let lightness = Math.max(25, base[2] - (depth * decay));
+            let startShadow = ROWS * 0.75;
+            if (row < startShadow) {
+                return `hsl(${base[0]}, ${base[1]}%, ${base[2]}%)`;
+            }
+            let depth = row - startShadow;
+            let maxDepth = ROWS - startShadow;
+            let percent = depth / maxDepth; 
+            let lightness = base[2] - (percent * (base[2] * 0.5)); 
+            
             return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
         }
 
@@ -535,9 +580,13 @@
                 return;
             }
 
-            let depth = Math.max(0, r - 15);
-            let decay = 1.0 / ROWS; 
-            let shade = Math.min(0.75, depth * decay); 
+            let startShadow = ROWS * 0.75;
+            let shade = 0;
+            if (r > startShadow) {
+                let depth = r - startShadow;
+                let maxDepth = ROWS - startShadow;
+                shade = (depth / maxDepth) * 0.85; 
+            }
 
             function fill(color) {
                 ctx.fillStyle = color;
@@ -548,59 +597,78 @@
                 }
             }
 
-            // TEXTURES
+            // --- UPDATED TEXTURES ---
+            
+            // DIRT (No change, protected)
             if (tileType === TILES.DIRT) {
                 fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
             }
+            // GRASS (No change, protected)
             else if (tileType === TILES.GRASS) {
                 fill(getLightColor(1, r)); ctx.fillStyle = getLightColor(2, r-5);
                 ctx.fillRect(x, y, TILE_SIZE, 10);
                 ctx.fillRect(x+2, y, 4, 12); ctx.fillRect(x+10, y, 4, 14); ctx.fillRect(x+20, y, 4, 11);
             }
+            // STONE (Brick Pattern)
             else if (tileType === TILES.STONE) {
-                fill(getLightColor(3, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
-                ctx.fillRect(x, y+8, TILE_SIZE, 2); ctx.fillRect(x, y+24, TILE_SIZE, 2);
-                ctx.fillRect(x+8, y, 2, 8); ctx.fillRect(x+20, y+8, 2, 16);
+                fill(getLightColor(3, r)); ctx.fillStyle = "rgba(0,0,0,0.3)";
+                // Staggered lines
+                if((c+r)%2===0) ctx.fillRect(x+16, y, 2, 16); else ctx.fillRect(x+16, y+16, 2, 16);
+                ctx.fillRect(x, y+16, TILE_SIZE, 2);
             }
+            // WOOD (Bark Vertical)
             else if (tileType === TILES.WOOD) {
-                fill(getLightColor(7, r)); ctx.fillStyle = "rgba(40, 20, 0, 0.3)";
-                ctx.fillRect(x+4, y, 2, TILE_SIZE); ctx.fillRect(x+12, y, 2, TILE_SIZE);
-                ctx.fillRect(x+20, y, 2, TILE_SIZE); ctx.fillRect(x+28, y, 2, TILE_SIZE);
+                fill(getLightColor(7, r)); ctx.fillStyle = "rgba(40, 20, 0, 0.4)";
+                ctx.fillRect(x+6, y, 4, TILE_SIZE); ctx.fillRect(x+18, y, 2, TILE_SIZE); ctx.fillRect(x+26, y, 4, TILE_SIZE);
             }
+            // PLANKS (Boards Horizontal)
             else if (tileType === TILES.PLANKS) {
                 fill(getLightColor(12, r)); ctx.fillStyle = "rgba(0,0,0,0.3)";
-                for(let i=1; i<4; i++) ctx.fillRect(x, y + (i*8), TILE_SIZE, 1);
-                ctx.fillStyle = "rgba(0,0,0,0.5)";
-                ctx.fillRect(x+2, y+2, 2, 2); ctx.fillRect(x+28, y+2, 2, 2);
+                for(let i=1; i<4; i++) ctx.fillRect(x, y + (i*8), TILE_SIZE, 2);
+                ctx.fillStyle = "rgba(0,0,0,0.6)"; // Nails
+                ctx.fillRect(x+2, y+3, 2, 2); ctx.fillRect(x+28, y+3, 2, 2);
+                ctx.fillRect(x+2, y+11, 2, 2); ctx.fillRect(x+28, y+11, 2, 2);
             }
+            // LEAVES (Protected)
             else if (tileType === TILES.LEAVES) {
                 fill(getLightColor(8, r)); ctx.fillStyle = "#66bb6a"; 
                 ctx.fillRect(x+4, y+4, 8, 6); ctx.fillRect(x+18, y+18, 6, 8);
             }
+            // SAND (Granular)
             else if (tileType === TILES.SAND) {
-                fill(getLightColor(4, r)); ctx.fillStyle = "rgba(200, 150, 0, 0.2)"; ctx.fillRect(x, y+10, TILE_SIZE, 2);
+                fill(getLightColor(4, r)); ctx.fillStyle = "rgba(200, 150, 0, 0.2)"; 
+                // Random grains
+                let n = (c * r * 13) % 10;
+                if(n<3) ctx.fillRect(x+4, y+4, 4, 4);
+                if(n>6) ctx.fillRect(x+20, y+20, 4, 4);
             }
+            // SNOW (Protected)
             else if (tileType === TILES.SNOW) {
                 fill('#eceff1'); ctx.fillStyle = "#ffffff"; ctx.fillRect(x, y, TILE_SIZE, 8);
             }
+            // WATER (Waves)
             else if (tileType === TILES.WATER) {
                 ctx.fillStyle = "rgba(41, 182, 246, 0.6)"; ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.fillRect(x+4, y+4, 8, 2); ctx.fillRect(x+16, y+10, 10, 2);
             }
+            // MUD (Gloopy)
             else if (tileType === TILES.MUD) {
-                fill(getLightColor(6, r)); ctx.fillStyle = "#1b0000"; ctx.fillRect(x+2, y+10, 8, 2);
+                fill(getLightColor(6, r)); ctx.fillStyle = "#1b0000"; ctx.fillRect(x+8, y+8, 16, 8);
             }
+            // ORES (Gems)
             else if (tileType === TILES.COAL_ORE) {
-                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#212121";
-                ctx.fillRect(x+8, y+8, 8, 8); ctx.fillRect(x+18, y+18, 6, 6);
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#111";
+                ctx.beginPath(); ctx.arc(x+16, y+16, 6, 0, 2*Math.PI); ctx.fill();
             }
             else if (tileType === TILES.GOLD_ORE) {
-                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#ffeb3b";
-                ctx.fillRect(x+10, y+10, 8, 8); ctx.fillRect(x+20, y+20, 4, 4);
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#ffd700";
+                ctx.fillRect(x+10, y+10, 12, 12); ctx.fillStyle="#fff"; ctx.fillRect(x+12,y+12,4,4);
             }
             else if (tileType === TILES.DIAMOND_ORE) {
                 drawTile(r, c, TILES.STONE); ctx.fillStyle = "#00e5ff"; 
-                ctx.fillRect(x+10, y+8, 6, 6); ctx.fillRect(x+18, y+20, 4, 4); ctx.fillRect(x+6, y+20, 4, 4);
+                ctx.beginPath(); ctx.moveTo(x+16, y+8); ctx.lineTo(x+24, y+16); ctx.lineTo(x+16, y+24); ctx.lineTo(x+8, y+16); ctx.fill();
             }
         }
 
@@ -705,7 +773,8 @@
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
             if (e.code === 'KeyC') { craftPlanks(); }
             if (e.key >= '1' && e.key <= '9') {
-                // Basic selections
+                const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW];
+                if (map[e.key]) { selectedBlock = map[e.key]; mode = 'BUILD'; updateHUD(); }
             }
         });
         window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -726,7 +795,6 @@
                  } else {
                      let pC = Math.floor((player.x+10)/TILE_SIZE);
                      let pR = Math.floor((player.y+20)/TILE_SIZE);
-                     // Allow placing on leaves/wood/etc
                      if ((c !== pC || r !== pR) && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
                          world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
                      }
@@ -735,45 +803,16 @@
         });
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
-        // --- EXPORT / IMPORT ---
-        function exportSave() {
-            const data = { world, player, inventory, COLS, ROWS };
-            const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = "vivaria_save.json";
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function importSave(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory;
-                    updateHUD();
-                    alert("World Imported Successfully!");
-                } catch(err) {
-                    alert("Invalid Save File");
-                }
-            };
-            reader.readAsText(file);
-        }
-
         function openModal() { document.getElementById('modal-overlay').style.display = 'flex'; }
         function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
         function confirmNewWorld(w, h) {
             initWorld(w, h); inventory = {}; Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; }); closeModal();
         }
         function saveGame() {
-            localStorage.setItem('vivaria_v16', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
+            localStorage.setItem('vivaria_v17', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
         }
         function loadGame() {
-            const data = JSON.parse(localStorage.getItem('vivaria_v16'));
+            const data = JSON.parse(localStorage.getItem('vivaria_v17'));
             if (data) { COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Loaded!"); }
         }
 
