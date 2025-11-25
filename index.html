@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v6.1 - Unified</title>
+    <title>Vivaria v6.2 - Tundra Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -54,7 +54,7 @@
         }
         .selected { border-color: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
 
-        /* --- ICONS (From v4.5.3) --- */
+        /* --- ICONS --- */
         .icon-1 { background: #5d4037; } 
         .icon-2 { background: linear-gradient(#4caf50, #5d4037); } 
         .icon-8 { background: #2e7d32; } 
@@ -70,6 +70,9 @@
         .icon-9 { background: radial-gradient(circle, #000 30%, #78909c 35%); } 
         .icon-10 { background: radial-gradient(circle, #ffd700 30%, #78909c 35%); } 
         .icon-13 { background: radial-gradient(circle, #00e5ff 30%, #78909c 35%); } 
+        
+        /* New Ice Icon */
+        .icon-14 { background: #a5d8f3; border: 2px solid #e1f5fe; opacity: 0.9; }
 
         /* Flower Icons */
         .icon-20 { background: radial-gradient(circle, #e91e63 40%, #2e7d32 50%); } 
@@ -167,7 +170,7 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.1</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.2</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
@@ -216,13 +219,24 @@
         
         const TILES = { 
             AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6,
-            WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12, DIAMOND_ORE: 13
+            WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12, DIAMOND_ORE: 13,
+            ICE: 14 // New Tile
+        };
+
+        const TILE_NAMES = {
+            1: "Dirt", 2: "Grass Block", 3: "Stone", 4: "Sand", 5: "Water Bucket", 6: "Mud",
+            7: "Raw Wood", 8: "Leaves", 9: "Coal Ore", 10: "Gold Ore", 11: "Snow Block",
+            12: "Wood Planks", 13: "Diamond Ore", 14: "Ice Block",
+            20: "Rose", 21: "Lavender", 22: "Sunflower", 23: "Bluebell", 24: "Tulip",
+            25: "Cactus", 26: "Tall Cactus", 27: "Shrub", 28: "Dead Bush", 29: "Tumbleweed",
+            30: "Frost Flower", 31: "Winter Bush", 32: "Snow Berry", 33: "Icicle Plant", 34: "Glacier Lily"
         };
 
         const BASE_COLORS = {
             1: [28, 45, 30], 2: [100, 60, 35], 3: [210, 10, 50], 4: [45, 90, 60], 
             6: [25, 35, 25], 7: [30, 55, 30], 8: [120, 50, 35], 9: [0, 0, 20], 
-            10: [50, 100, 50], 11: [200, 30, 90], 12: [35, 50, 50], 13: [180, 80, 60]
+            10: [50, 100, 50], 11: [200, 30, 90], 12: [35, 50, 50], 13: [180, 80, 60],
+            14: [195, 70, 80] // Ice Color
         };
         
         let world = [];
@@ -412,6 +426,7 @@
             worldSeed = Math.random() * 10000; 
             let surfaceLevel = Math.floor(ROWS * 0.35);
             let heights = new Array(COLS).fill(0);
+            let biomes = new Array(COLS).fill('');
 
             for (let r = 0; r < ROWS; r++) {
                 let row = [];
@@ -424,17 +439,23 @@
                     let biomeNoise = Math.sin(cx * 0.015) + (Math.sin(cx * 0.05) * 0.1); 
                     let surfaceBlock, subBlock;
 
+                    // Biome determination
                     if (biomeNoise > 0.4 && biomeNoise < 0.6) {
+                        biomes[c] = 'DESERT';
                         if (Math.random() > 0.5) { surfaceBlock = TILES.SAND; subBlock = TILES.SAND; }
                         else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
                     } else if (biomeNoise < -0.4 && biomeNoise > -0.6) {
+                        biomes[c] = 'SNOW';
                         if (Math.random() > 0.5) { surfaceBlock = TILES.SNOW; subBlock = TILES.DIRT; }
                         else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
                     } else if (biomeNoise > 0.5) {
+                        biomes[c] = 'DESERT';
                         surfaceBlock = TILES.SAND; subBlock = TILES.SAND;
                     } else if (biomeNoise < -0.5) {
+                        biomes[c] = 'SNOW';
                         surfaceBlock = TILES.SNOW; subBlock = TILES.DIRT;
                     } else {
+                        biomes[c] = 'FOREST';
                         surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT;
                     }
 
@@ -459,13 +480,39 @@
                 let lakeX = Math.floor(Math.random() * (COLS - 20)) + 10;
                 carveLake(lakeX, heights[lakeX]);
             }
+            
+            // GENERATE ICEBERGS
+            for (let c=0; c < COLS; c++) {
+                if (biomes[c] === 'SNOW') {
+                    // Check for water surface
+                    let h = heights[c];
+                    // scan down from sky to find water
+                    for(let r=h-5; r<h+5; r++) {
+                        if (r>=0 && r<ROWS) {
+                            if (world[r][c] === TILES.WATER) {
+                                if (Math.random() < 0.08) {
+                                    spawnIceberg(r, c);
+                                    c += 5; // skip a bit
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             for(let c=2; c < COLS-2; c++) {
                 let r = heights[c];
+                // Find true ground (could be lower if lake carved)
+                while(r < ROWS && world[r][c] === TILES.AIR) r++;
+                
+                if (r >= ROWS) continue;
+
                 let ground = world[r][c];
                 let plantY = r - 1;
 
-                if (ground === TILES.GRASS && Math.random() < 0.12) {
+                // Trees on Grass AND Snow now
+                if ((ground === TILES.GRASS || ground === TILES.SNOW) && Math.random() < 0.12) {
                     growTree(plantY, c);
                     c += 2;
                 } else if (world[plantY][c] === TILES.AIR) {
@@ -483,6 +530,26 @@
             player.x = (COLS * TILE_SIZE) / 2;
             player.y = 0; player.vx = 0; player.vy = 0;
             updateHUD();
+        }
+        
+        function spawnIceberg(surfaceR, c) {
+            // Simple pyramid shape
+            let width = 2 + Math.floor(Math.random() * 3); // radius
+            for(let y = -2; y <= 1; y++) {
+                for(let x = -width; x <= width; x++) {
+                    let r = surfaceR + y;
+                    let col = c + x;
+                    if (r >= 0 && r < ROWS && col >= 0 && col < COLS) {
+                        // Create a rough shape
+                        if (Math.abs(x) + Math.abs(y) <= width + Math.random()) {
+                            // Only replace Air or Water
+                            if (world[r][col] === TILES.AIR || world[r][col] === TILES.WATER) {
+                                world[r][col] = TILES.ICE;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         function growTree(baseR, baseC) {
@@ -732,6 +799,7 @@
         // --- RENDER ---
         function getLightColor(tileType, row) {
             if (tileType === TILES.WATER) return 'rgba(41, 182, 246, 0.6)'; 
+            if (tileType === TILES.ICE) return 'rgba(165, 216, 243, 0.9)';
             const base = BASE_COLORS[tileType];
             if (!base) return 'magenta';
 
@@ -773,7 +841,7 @@
                 }
             }
 
-            // TEXTURES (v4.5.3)
+            // TEXTURES
             if (tileType === TILES.DIRT) {
                 fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
@@ -813,6 +881,13 @@
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(x, y, TILE_SIZE, 10);
                 ctx.fillRect(x+2, y, 4, 12); ctx.fillRect(x+10, y, 4, 14); ctx.fillRect(x+20, y, 4, 11);
+            }
+            else if (tileType === TILES.ICE) {
+                fill(getLightColor(14, r));
+                ctx.fillStyle = "rgba(255,255,255,0.4)";
+                // Glare lines
+                ctx.beginPath(); ctx.moveTo(x, y+TILE_SIZE); ctx.lineTo(x+TILE_SIZE, y); ctx.stroke();
+                ctx.fillRect(x+5, y+5, 4, 4);
             }
             else if (tileType === TILES.WATER) {
                 ctx.fillStyle = "rgba(41, 182, 246, 0.6)"; ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
@@ -919,13 +994,16 @@
         // --- CONTROLS ---
         function updateHUD() {
             const toolDiv = document.getElementById('tool-display');
-            toolDiv.innerText = mode === 'MINE' ? "⛏️ MINING" : "🧱 BUILDING";
+            let toolName = mode === 'MINE' ? "⛏️ MINING" : "🧱 BUILDING";
+            if (mode === 'BUILD') toolName += ": " + (TILE_NAMES[selectedBlock] || "Unknown");
+            
+            toolDiv.innerText = toolName;
             toolDiv.style.color = mode === 'MINE' ? "#ff7675" : "#55efc4";
 
             const invBar = document.getElementById('inventory-bar');
             invBar.innerHTML = '';
             
-            const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW, TILES.COAL_ORE, TILES.GOLD_ORE, TILES.DIAMOND_ORE];
+            const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW, TILES.ICE, TILES.COAL_ORE, TILES.GOLD_ORE, TILES.DIAMOND_ORE];
             for(let i=20; i<=34; i++) { if(inventory[i]>0) showList.push(i); }
 
             showList.forEach(id => {
@@ -936,7 +1014,9 @@
                 
                 slot.className = className + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`;
-                slot.title = "ID: " + id;
+                // Label added to Tooltip
+                slot.title = TILE_NAMES[id] || ("ID: " + id);
+                
                 slot.onclick = () => { selectedBlock = id; mode = 'BUILD'; updateHUD(); };
                 invBar.appendChild(slot);
             });
