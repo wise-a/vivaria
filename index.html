@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v6.5.1 - Lighting Hotfix</title>
+    <title>Vivaria v6.6 - Ghost Trees</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -149,7 +149,7 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.5.1</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.6</h1>
                 <div style="font-size: 8px; color: #bdc3c7; margin-bottom: 5px;" id="time-display">Day 1 - 12:00 PM</div>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
@@ -290,15 +290,30 @@
         
         function lerp(start, end, t) { return start * (1 - t) + end * t; }
         function lerpColor(c1, c2, t) { return [ Math.round(lerp(c1[0], c2[0], t)), Math.round(lerp(c1[1], c2[1], t)), Math.round(lerp(c1[2], c2[2], t)) ]; }
-        function isPermeable(tile) { return tile === TILES.WOOD || tile === TILES.LEAVES || tile === TILES.TORCH || (tile >= 20 && tile <= 34); }
-        function isSolid(tile) { if (tile === TILES.AIR) return false; if (tile === TILES.WATER) return false; if (isPermeable(tile)) return false; return true; }
+        
+        // --- PHYSICS DEFINITIONS ---
+        // Permeable: Water can destroy/flow into this
+        function isPermeable(tile) { 
+            return tile === TILES.TORCH || (tile >= 20 && tile <= 34); 
+        }
+        
+        // Solid: Player hits this
+        function isSolid(tile) { 
+            if (tile === TILES.AIR) return false;
+            if (tile === TILES.WATER) return false;
+            if (isPermeable(tile)) return false;
+            // NEW: Trees are non-solid to player, but block water
+            if (tile === TILES.WOOD || tile === TILES.LEAVES) return false;
+            return true; 
+        }
+        
         function openLanMenu() { document.getElementById('lan-overlay').style.display = 'flex'; }
 
         // --- WORLD GENERATION ---
         function initWorld(w, h) {
             COLS = w; ROWS = h;
             world = [];
-            torchList = []; // Reset torches
+            torchList = []; 
             worldSeed = Math.random() * 10000; 
             let surfaceLevel = Math.floor(ROWS * 0.35);
             let heights = new Array(COLS).fill(0);
@@ -354,9 +369,7 @@
             for(let c=2; c < COLS-2; c++) {
                 let r = 0;
                 while(r < ROWS && world[r][c] === TILES.AIR) r++;
-                
                 if (r >= ROWS) continue; 
-                
                 let ground = world[r][c]; 
                 let plantY = r - 1; 
 
@@ -448,7 +461,8 @@
                         if (r>0 && world[r-1][c] === TILES.WATER) touchesWater = true; else if (r<ROWS-1 && world[r+1][c] === TILES.WATER) touchesWater = true; else if (c>0 && world[r][c-1] === TILES.WATER) touchesWater = true; else if (c<COLS-1 && world[r][c+1] === TILES.WATER) touchesWater = true;
                         if (!touchesWater && Math.random() < 0.007) world[r][c] = TILES.DIRT;
                     }
-                    if (isPermeable(tile) && tile !== TILES.WOOD && tile !== TILES.LEAVES) { 
+                    // Destroy permeable things (flowers, torches)
+                    if (isPermeable(tile)) { 
                         let below = world[r+1][c]; if (below === TILES.AIR || below === TILES.WATER) { world[r][c] = TILES.AIR; removeFromTorchList(r, c); } continue;
                     }
                     if (tile === TILES.SAND) {
@@ -458,7 +472,10 @@
                     }
                     if (tile === TILES.WATER) {
                         if (r + 1 < ROWS) { let below = world[r+1][c]; if ((below === TILES.DIRT || below === TILES.GRASS) && Math.random() < 0.005) world[r+1][c] = TILES.MUD; }
-                        let down = world[r+1][c]; if (down === TILES.AIR || isPermeable(down)) { world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue; }
+                        let down = world[r+1][c]; 
+                        // Water flows into Air or Permeable things (but NOT trees/wood/leaves)
+                        if (down === TILES.AIR || isPermeable(down)) { world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue; }
+                        
                         let left = (c > 0) ? world[r][c-1] : -1; let right = (c < COLS-1) ? world[r][c+1] : -1;
                         let canLeft = (left === TILES.AIR || isPermeable(left)); let canRight = (right === TILES.AIR || isPermeable(right));
                         if (canLeft && canRight) { (Math.random() > 0.5) ? tryMoveWater(r, c, r, c+1) : tryMoveWater(r, c, r, c-1); } else if (canLeft) { tryMoveWater(r, c, r, c-1); } else if (canRight) { tryMoveWater(r, c, r, c+1); }
@@ -562,7 +579,6 @@
         function getLightColor(r, c, tileType) {
             if (tileType === TILES.TORCH) return `hsl(45, 100%, 60%)`; 
             
-            // 1. Calculate Sun Light
             let startShadow = ROWS * 0.75;
             let depthFactor = 1.0;
             if (r > startShadow) {
@@ -571,22 +587,19 @@
             }
             let sunBrightness = depthFactor * globalLightLevel;
 
-            // 2. Calculate Torch Light (Local)
             let torchBrightness = 0;
-            if (globalLightLevel < 0.9) { // Only check torches if it's dark
+            if (globalLightLevel < 0.9) { 
                 for(let t of torchList) {
                     let d = Math.sqrt((t.r - r)**2 + (t.c - c)**2);
-                    if (d < 8) { // 8 block radius
+                    if (d < 8) { 
                         let b = 1.0 - (d / 8);
                         if (b > torchBrightness) torchBrightness = b;
                     }
                 }
             }
             
-            // Combine lights (max)
             let finalBrightness = Math.max(sunBrightness, torchBrightness);
             
-            // Handle Transparent Blocks
             if (tileType === TILES.WATER) return `rgba(41, 182, 246, ${0.6 * finalBrightness})`; 
             if (tileType === TILES.ICE) return `rgba(165, 216, 243, ${0.9 * finalBrightness})`;
 
