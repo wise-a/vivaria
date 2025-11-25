@@ -3,14 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v4.5.3 - Flora Variety</title>
+    <title>Vivaria v6.1 - Unified</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --pixel-font: 'Press Start 2P', cursive;
             --ui-bg: rgba(20, 20, 30, 0.95);
             --ui-border: #4a69bd;
             --highlight: #f1c40f;
+            --admin-color: #e74c3c;
         }
         body {
             margin: 0;
@@ -52,7 +54,7 @@
         }
         .selected { border-color: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
 
-        /* --- ICONS (From v4.5.2) --- */
+        /* --- ICONS (From v4.5.3) --- */
         .icon-1 { background: #5d4037; } 
         .icon-2 { background: linear-gradient(#4caf50, #5d4037); } 
         .icon-8 { background: #2e7d32; } 
@@ -86,13 +88,13 @@
         .icon-33 { background: #b3e5fc; border: 2px solid white; }
         .icon-34 { background: radial-gradient(circle, white 20%, #81d4fa 80%); }
 
-
-        #modal-overlay {
+        /* OVERLAYS */
+        #modal-overlay, #lan-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); display: none;
             justify-content: center; align-items: center; pointer-events: auto; z-index: 20;
         }
-        .modal-box { background: var(--ui-bg); border: 4px solid var(--highlight); padding: 30px; text-align: center; }
+        .modal-box { background: var(--ui-bg); border: 4px solid var(--highlight); padding: 30px; text-align: center; min-width: 350px; max-width: 500px; }
         .size-btn {
             display: block; width: 100%; margin: 10px 0; padding: 15px;
             font-family: var(--pixel-font); background: #34495e; color: white;
@@ -111,6 +113,13 @@
         .craft-btn:hover { background: #e67e22; }
 
         #file-input { display: none; }
+        input[type="text"], input[type="password"] { padding: 10px; font-family: inherit; width: 90%; margin-bottom: 10px; background: #222; color: white; border: 1px solid #777; }
+
+        /* ADMIN UI */
+        #admin-panel { display: none; border: 2px solid var(--admin-color); padding: 10px; margin-top: 10px; background: rgba(50, 0, 0, 0.5); }
+        #player-list { text-align: left; font-size: 10px; margin-bottom: 10px; max-height: 100px; overflow-y: auto; }
+        .player-row { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #555; padding: 2px;}
+        .kick-btn { background: var(--admin-color); color: white; border: none; padding: 2px 5px; cursor: pointer; font-size: 8px; }
 
         canvas { display: block; cursor: crosshair; }
         ::-webkit-scrollbar { width: 5px; }
@@ -121,7 +130,7 @@
 
     <div id="modal-overlay">
         <div class="modal-box">
-            <h2 style="color: #f1c40f; margin-bottom: 20px;">NEW WORLD GENERATION</h2>
+            <h2 style="color: #f1c40f; margin-bottom: 20px;">NEW WORLD</h2>
             <button class="size-btn" onclick="confirmNewWorld(150, 60)">STANDARD (150x60)</button>
             <button class="size-btn" onclick="confirmNewWorld(300, 100)">LARGE (300x100)</button>
             <button class="size-btn" onclick="confirmNewWorld(600, 150)">MASSIVE (600x150)</button>
@@ -129,10 +138,35 @@
         </div>
     </div>
 
+    <div id="lan-overlay">
+        <div class="modal-box">
+            <h2 style="color: #27ae60; margin-bottom: 20px;">MULTIPLAYER</h2>
+            <button class="size-btn" onclick="connectToSupabase()">JOIN GLOBAL ROOM</button>
+            
+            <div style="margin-top: 20px; border-top: 1px solid #777; padding-top: 10px;">
+                <p style="color: var(--admin-color); font-size: 10px; cursor: pointer;" onclick="toggleAdminAuth()">[ ADMIN ACCESS ]</p>
+                <div id="admin-auth" style="display:none;">
+                    <input type="password" id="admin-pass" placeholder="Admin Password">
+                    <button onclick="loginAdmin()">LOGIN</button>
+                </div>
+            </div>
+
+            <div id="admin-panel">
+                <h3 style="color: var(--admin-color); font-size: 10px;">ADMIN CONTROLS</h3>
+                <div id="player-list">Waiting for players...</div>
+                <button class="size-btn" style="background: #e67e22; font-size: 10px;" onclick="adminGenerateWorld()">RESET SERVER (NEW SEED)</button>
+                <button class="size-btn" style="background: #8e44ad; font-size: 10px;" onclick="document.getElementById('admin-upload').click()">UPLOAD .JSON SAVE</button>
+                <input type="file" id="admin-upload" accept=".json" style="display:none;" onchange="adminUploadWorld(this)">
+            </div>
+
+            <button class="size-btn" style="background:#c0392b; margin-top: 20px;" onclick="document.getElementById('lan-overlay').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.5.3</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.1</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
@@ -145,13 +179,14 @@
         </div>
         <div style="align-self: flex-end; pointer-events: auto; display: flex; flex-direction: column; align-items: flex-end;">
             <div class="btn-group">
-                <button onclick="saveGame()">Save Browser</button>
-                <button onclick="loadGame()">Load Browser</button>
+                <button onclick="openLanMenu()" style="border-color: #27ae60; color: #27ae60;">Multiplayer</button>
                 <button onclick="openModal()">New World</button>
             </div>
             <div class="btn-group">
-                <button onclick="exportSave()" style="border-color: #27ae60;">Export File</button>
-                <button onclick="document.getElementById('file-input').click()" style="border-color: #2980b9;">Import File</button>
+                <button onclick="saveGame()">Save</button>
+                <button onclick="loadGame()">Load</button>
+                <button onclick="exportSave()">Export</button>
+                <button onclick="document.getElementById('file-input').click()">Import</button>
                 <input type="file" id="file-input" accept=".json" onchange="importSave(this)">
             </div>
         </div>
@@ -160,6 +195,10 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        // --- SUPABASE CONFIG ---
+        const SB_URL = "https://dsxdngywiygmwmrenyfy.supabase.co";
+        const SB_KEY = "sb_publishable_9uGT7xip6bEs39erf8EawQ_WEHBpJfX";
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
@@ -186,7 +225,15 @@
         };
         
         let world = [];
-        let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false };
+        let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false, id: Math.random().toString(36).substr(2, 9) };
+        
+        // NETWORK STATE
+        let supabase = null;
+        let channel = null;
+        let lastBroadcast = 0;
+        let otherPlayers = {}; 
+        let isAdmin = false;
+
         let camera = { x: 0, y: 0 };
         let mouseTile = { c: -1, r: -1 };
         let inventory = {}; 
@@ -211,6 +258,126 @@
             if (tile === TILES.WATER) return false;
             if (isPermeable(tile)) return false;
             return true;
+        }
+
+        // --- ADMIN & NETWORKING FUNCTIONS ---
+        function openLanMenu() { document.getElementById('lan-overlay').style.display = 'flex'; updatePlayerList(); }
+        function toggleAdminAuth() { document.getElementById('admin-auth').style.display = 'block'; }
+        
+        async function loginAdmin() {
+            const pass = document.getElementById('admin-pass').value;
+            if(!supabase) { alert("Please connect to server first!"); return; }
+
+            try {
+                // CALL SECURE SQL FUNCTION
+                const { data, error } = await supabase.rpc('check_admin_pass', { pass_input: pass });
+                
+                if (error) throw error;
+
+                if (data === true) {
+                    isAdmin = true;
+                    document.getElementById('admin-auth').style.display = 'none';
+                    document.getElementById('admin-panel').style.display = 'block';
+                    alert("Secure Admin Access Granted.");
+                    updatePlayerList();
+                } else {
+                    alert("Incorrect Password.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Database Error. Ensure SQL script was run in Supabase.");
+            }
+        }
+
+        function updatePlayerList() {
+            if (!isAdmin) return;
+            const list = document.getElementById('player-list');
+            list.innerHTML = "";
+            list.innerHTML += `<div class="player-row"><span>YOU (${player.id})</span></div>`;
+            for (let pid in otherPlayers) {
+                list.innerHTML += `<div class="player-row"><span>${pid}</span> <button class="kick-btn" onclick="adminKick('${pid}')">KICK</button></div>`;
+            }
+        }
+
+        function adminKick(targetId) {
+            if(channel) channel.send({ type: 'broadcast', event: 'kick', payload: { target: targetId } });
+        }
+
+        function adminGenerateWorld() {
+            if(confirm("Reset world for ALL players?")) {
+                initWorld(COLS, ROWS); 
+                // Broadcast new world state
+                channel.send({ type: 'broadcast', event: 'sync_world', payload: { world: world, cols: COLS, rows: ROWS } });
+            }
+        }
+
+        function adminUploadWorld(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = JSON.parse(e.target.result);
+                COLS = data.COLS; ROWS = data.ROWS; world = data.world; inventory = data.inventory;
+                updateHUD();
+                channel.send({ type: 'broadcast', event: 'sync_world', payload: { world: world, cols: COLS, rows: ROWS } });
+            };
+            reader.readAsText(file);
+        }
+
+        async function connectToSupabase() {
+            try {
+                supabase = window.supabase.createClient(SB_URL, SB_KEY);
+                channel = supabase.channel('vivaria_global');
+                
+                channel
+                    .on('broadcast', { event: 'move' }, (payload) => {
+                        if (payload.payload.pid !== player.id) {
+                            otherPlayers[payload.payload.pid] = payload.payload;
+                            if(isAdmin) updatePlayerList();
+                        }
+                    })
+                    .on('broadcast', { event: 'block' }, (payload) => {
+                        if (payload.payload.pid !== player.id) {
+                            const p = payload.payload;
+                            if(world[p.r] && world[p.r][p.c] !== undefined) {
+                                world[p.r][p.c] = p.tile;
+                            }
+                        }
+                    })
+                    .on('broadcast', { event: 'kick' }, (payload) => {
+                        if (payload.payload.target === player.id) {
+                            document.body.innerHTML = "<h1 style='color:red; margin-top:50px;'>YOU HAVE BEEN KICKED BY ADMIN</h1>";
+                            supabase.removeAllChannels();
+                        }
+                    })
+                    .on('broadcast', { event: 'sync_world' }, (payload) => {
+                        const p = payload.payload;
+                        world = p.world; COLS = p.cols; ROWS = p.rows;
+                        updateHUD();
+                        alert("Admin synced the world state!");
+                    })
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            alert("Connected!");
+                            document.getElementById('lan-overlay').style.display = 'none';
+                        }
+                    });
+
+            } catch (err) { console.error(err); alert("Connection failed."); }
+        }
+
+        function broadcastMove() {
+            if (!channel) return;
+            const now = Date.now();
+            if (now - lastBroadcast > 50) { 
+                channel.send({ type: 'broadcast', event: 'move', payload: { pid: player.id, x: player.x, y: player.y } });
+                lastBroadcast = now;
+            }
+        }
+
+        function broadcastBlock(r, c, tile) {
+            if (!channel) return;
+            channel.send({ type: 'broadcast', event: 'block', payload: { pid: player.id, r: r, c: c, tile: tile } });
         }
 
         // --- WORLD GENERATION ---
@@ -340,7 +507,7 @@
             }
         }
 
-        // --- CELLULAR AUTOMATA ---
+        // --- FLUID SIM ---
         function updateCellularAutomata() {
             let startC = tickCount % 2 === 0 ? 0 : COLS - 1;
             let endC = tickCount % 2 === 0 ? COLS : -1;
@@ -350,40 +517,24 @@
                 for (let c = startC; c !== endC; c += step) {
                     let tile = world[r][c];
 
-                    // MUD DRYING
+                    // Mud Drying
                     if (tile === TILES.MUD) {
                         let touchesWater = false;
                         if (r>0 && world[r-1][c] === TILES.WATER) touchesWater = true;
                         else if (r<ROWS-1 && world[r+1][c] === TILES.WATER) touchesWater = true;
                         else if (c>0 && world[r][c-1] === TILES.WATER) touchesWater = true;
                         else if (c<COLS-1 && world[r][c+1] === TILES.WATER) touchesWater = true;
-
                         if (!touchesWater && Math.random() < 0.007) world[r][c] = TILES.DIRT;
                     }
 
-                    // GRASS REGROWTH
-                    if (tile === TILES.DIRT) {
-                        if (r>0 && world[r-1][c] === TILES.AIR) {
-                            if (Math.random() < 0.003) { 
-                                let cx = c + worldSeed;
-                                let biomeNoise = Math.sin(cx * 0.015) + (Math.sin(cx * 0.05) * 0.1);
-                                if (biomeNoise < -0.5) world[r][c] = TILES.SNOW;
-                                else if (biomeNoise > 0.5) { }
-                                else world[r][c] = TILES.GRASS;
-                            }
-                        }
-                    }
-
-                    // FLOWERS BREAK (No Inventory)
+                    // Flowers Break
                     if (tile >= 20 && tile <= 34) { 
                         let below = world[r+1][c];
-                        if (below === TILES.AIR || below === TILES.WATER) {
-                            world[r][c] = TILES.AIR; 
-                        }
+                        if (below === TILES.AIR || below === TILES.WATER) world[r][c] = TILES.AIR;
                         continue;
                     }
 
-                    // SAND
+                    // Sand
                     if (tile === TILES.SAND) {
                         if (world[r+1][c] === TILES.AIR || world[r+1][c] === TILES.WATER) {
                             world[r][c] = world[r+1][c]; world[r+1][c] = TILES.SAND;
@@ -394,7 +545,7 @@
                         }
                     }
                     
-                    // WATER
+                    // Water
                     if (tile === TILES.WATER) {
                         if (r + 1 < ROWS) {
                             let below = world[r+1][c];
@@ -407,7 +558,6 @@
                         if (down === TILES.AIR) {
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (down >= 20 && down <= 34) {
-                            // WASH FLOWER (No Inventory)
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (isPermeable(down)) {
                             if (r+2 < ROWS && world[r+2][c] === TILES.AIR) {
@@ -438,23 +588,21 @@
 
         function tryMoveWater(r, c, targetR, targetC) {
             let target = world[targetR][targetC];
-            if (target === TILES.AIR) {
+            if (target === TILES.AIR || (target >= 20 && target <= 34)) { 
                 world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
-            } 
-            else if (target >= 20 && target <= 34) { 
-                // WASH FLOWER (No Inventory)
-                world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
+                if(channel) { broadcastBlock(r, c, TILES.AIR); broadcastBlock(targetR, targetC, TILES.WATER); }
             }
             else if (isPermeable(target)) {
                 let dirC = targetC - c;
                 let nextC = targetC + dirC;
-                if (nextC >= 0 && nextC < COLS && world[targetR][nextC] === TILES.AIR) {
-                    world[r][c] = TILES.AIR; world[targetR][nextC] = TILES.WATER;
+                if (nextC >= 0 && nextC < COLS && world[targetR][nextC] === TILES.AIR) { 
+                    world[r][c] = TILES.AIR; world[targetR][nextC] = TILES.WATER; 
+                    if(channel) { broadcastBlock(r, c, TILES.AIR); broadcastBlock(targetR, nextC, TILES.WATER); }
                 }
             }
         }
 
-        // --- PHYSICS & CRAFTING ---
+        // --- PHYSICS ---
         function getTileAt(x, y) {
             let c = Math.floor(x / TILE_SIZE);
             let r = Math.floor(y / TILE_SIZE);
@@ -484,9 +632,10 @@
             let atSurface = player.inWater && (getTileAt(player.x, player.y) === TILES.AIR);
 
             let moveSpeed = 5;
-            if (keys['ArrowRight'] || keys['KeyD']) player.vx = moveSpeed;
-            else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -moveSpeed;
-            else player.vx = 0;
+            let dx = 0;
+            if (keys['ArrowRight'] || keys['KeyD']) dx = moveSpeed;
+            else if (keys['ArrowLeft'] || keys['KeyA']) dx = -moveSpeed;
+            player.vx = dx;
 
             let jumping = (keys['Space'] || keys['ArrowUp'] || keys['KeyW']);
 
@@ -533,6 +682,8 @@
 
             camera.x += (player.x - canvas.width / 2 - camera.x) * 0.1;
             camera.y += (player.y - canvas.height / 2 - camera.y) * 0.1;
+
+            if (channel && (dx !== 0 || jumping || player.vy !== 0)) broadcastMove();
         }
 
         function checkCollision(x, y, headCheck=false) {
@@ -596,7 +747,7 @@
                 }
             }
 
-            // TEXTURES
+            // TEXTURES (v4.5.3)
             if (tileType === TILES.DIRT) {
                 fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
@@ -631,8 +782,7 @@
                 let n = (c * r * 13) % 10; if(n<3) ctx.fillRect(x+4, y+4, 4, 4); if(n>6) ctx.fillRect(x+20, y+20, 4, 4);
             }
             else if (tileType === TILES.SNOW) {
-                fill(getLightColor(1, r)); 
-                ctx.fillStyle = "rgba(0,0,0,0.2)";
+                fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)"; 
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
                 ctx.fillStyle = "#ffffff";
                 ctx.fillRect(x, y, TILE_SIZE, 10);
@@ -644,7 +794,7 @@
                 ctx.fillRect(x+4, y+4, 8, 2); ctx.fillRect(x+16, y+10, 10, 2);
             }
             else if (tileType === TILES.MUD) {
-                fill(getLightColor(6, r)); ctx.fillStyle = "rgba(0,0,0,0.35)";
+                fill(getLightColor(6, r)); ctx.fillStyle = "rgba(0,0,0,0.35)"; 
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
             }
             else if (tileType === TILES.COAL_ORE) {
@@ -661,81 +811,28 @@
             }
         }
 
-        // --- NEW: UNIQUE PLANT DRAWING ---
         function drawPlant(x, y, id) {
-            const stemGreen = "#2e7d32"; const darkStem = "#1b5e20";
-            const cactusGreen = "#558b2f"; const deadBrown = "#795548";
-            const iceBlue = "#81d4fa";
-
+            let variant = id % 5;
+            const stemGreen = "#2e7d32"; const darkStem = "#1b5e20"; const cactusGreen = "#558b2f"; const deadBrown = "#795548"; const iceBlue = "#81d4fa";
             switch(id) {
                 // Forest
-                case 20: // Tulip Red
-                    ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+16, 4, 16);
-                    ctx.fillStyle = "#e91e63"; ctx.fillRect(x+10, y+8, 12, 10); 
-                    ctx.fillRect(x+10, y+6, 4, 2); ctx.fillRect(x+18, y+6, 4, 2);
-                    break;
-                case 21: // Lavender Purple
-                    ctx.fillStyle = darkStem; ctx.fillRect(x+14, y+10, 4, 22);
-                    ctx.fillStyle = "#9c27b0"; ctx.fillRect(x+12, y+10, 8, 4); ctx.fillRect(x+12, y+16, 8, 4); ctx.fillRect(x+12, y+22, 8, 4);
-                    break;
-                case 22: // Sunflower Yellow
-                    ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+14, 4, 18);
-                    ctx.fillStyle = "#ffeb3b"; ctx.fillRect(x+8, y+4, 16, 16); 
-                    ctx.fillStyle = "#3e2723"; ctx.fillRect(x+12, y+8, 8, 8);
-                    break;
-                case 23: // Bush Blue
-                    ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+20, 4, 12);
-                    ctx.fillStyle = "#2196f3"; ctx.fillRect(x+8, y+12, 6, 6); ctx.fillRect(x+18, y+12, 6, 6); ctx.fillRect(x+13, y+8, 6, 6);
-                    break;
-                case 24: // Poppy Orange
-                    ctx.fillStyle = stemGreen; ctx.fillRect(x+15, y+16, 2, 16);
-                    ctx.fillStyle = "#f44336"; ctx.fillRect(x+6, y+12, 20, 6); ctx.fillRect(x+10, y+18, 12, 2);
-                    ctx.fillStyle = "#111"; ctx.fillRect(x+14, y+14, 4, 4);
-                    break;
+                case 20: ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+16, 4, 16); ctx.fillStyle = "#e91e63"; ctx.fillRect(x+10, y+8, 12, 10); ctx.fillRect(x+10, y+6, 4, 2); ctx.fillRect(x+18, y+6, 4, 2); break;
+                case 21: ctx.fillStyle = darkStem; ctx.fillRect(x+14, y+10, 4, 22); ctx.fillStyle = "#9c27b0"; ctx.fillRect(x+12, y+10, 8, 4); ctx.fillRect(x+12, y+16, 8, 4); ctx.fillRect(x+12, y+22, 8, 4); break;
+                case 22: ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+14, 4, 18); ctx.fillStyle = "#ffeb3b"; ctx.fillRect(x+8, y+4, 16, 16); ctx.fillStyle = "#3e2723"; ctx.fillRect(x+12, y+8, 8, 8); break;
+                case 23: ctx.fillStyle = stemGreen; ctx.fillRect(x+14, y+20, 4, 12); ctx.fillStyle = "#2196f3"; ctx.fillRect(x+8, y+12, 6, 6); ctx.fillRect(x+18, y+12, 6, 6); ctx.fillRect(x+13, y+8, 6, 6); break;
+                case 24: ctx.fillStyle = stemGreen; ctx.fillRect(x+15, y+16, 2, 16); ctx.fillStyle = "#f44336"; ctx.fillRect(x+6, y+12, 20, 6); ctx.fillRect(x+10, y+18, 12, 2); ctx.fillStyle = "#111"; ctx.fillRect(x+14, y+14, 4, 4); break;
                 // Desert
-                case 25: // Tall Cactus
-                    ctx.fillStyle = cactusGreen; ctx.fillRect(x+10, y+6, 12, 26);
-                    ctx.fillStyle = "#33691e"; ctx.fillRect(x+12, y+8, 2, 22);
-                    break;
-                case 26: // Armed Cactus
-                    ctx.fillStyle = cactusGreen; ctx.fillRect(x+12, y+8, 8, 24);
-                    ctx.fillRect(x+4, y+14, 8, 4); ctx.fillRect(x+4, y+10, 4, 4); 
-                    ctx.fillRect(x+20, y+18, 8, 4); ctx.fillRect(x+24, y+14, 4, 4);
-                    break;
-                case 27: // Round Cactus
-                    ctx.fillStyle = cactusGreen; ctx.fillRect(x+6, y+16, 20, 16);
-                    ctx.fillStyle = "#e91e63"; ctx.fillRect(x+12, y+12, 8, 4);
-                    break;
-                case 28: // Dead Bush Small
-                    ctx.fillStyle = deadBrown; ctx.fillRect(x+14, y+24, 4, 8); ctx.fillRect(x+10, y+20, 4, 4); ctx.fillRect(x+18, y+22, 4, 4);
-                    break;
-                case 29: // Tumbleweed
-                    ctx.fillStyle = deadBrown; ctx.fillRect(x+8, y+12, 16, 16); ctx.fillStyle = "#5d4037";
-                    ctx.fillRect(x+12, y+16, 8, 8); ctx.fillRect(x+4, y+18, 4, 4); ctx.fillRect(x+24, y+14, 4, 4);
-                    break;
+                case 25: ctx.fillStyle = cactusGreen; ctx.fillRect(x+10, y+6, 12, 26); ctx.fillStyle = "#33691e"; ctx.fillRect(x+12, y+8, 2, 22); break;
+                case 26: ctx.fillStyle = cactusGreen; ctx.fillRect(x+12, y+8, 8, 24); ctx.fillRect(x+4, y+14, 8, 4); ctx.fillRect(x+4, y+10, 4, 4); ctx.fillRect(x+20, y+18, 8, 4); ctx.fillRect(x+24, y+14, 4, 4); break;
+                case 27: ctx.fillStyle = cactusGreen; ctx.fillRect(x+6, y+16, 20, 16); ctx.fillStyle = "#e91e63"; ctx.fillRect(x+12, y+12, 8, 4); break;
+                case 28: ctx.fillStyle = deadBrown; ctx.fillRect(x+14, y+24, 4, 8); ctx.fillRect(x+10, y+20, 4, 4); ctx.fillRect(x+18, y+22, 4, 4); break;
+                case 29: ctx.fillStyle = deadBrown; ctx.fillRect(x+8, y+12, 16, 16); ctx.fillStyle = "#5d4037"; ctx.fillRect(x+12, y+16, 8, 8); ctx.fillRect(x+4, y+18, 4, 4); ctx.fillRect(x+24, y+14, 4, 4); break;
                 // Snow
-                case 30: // Ice Crystal
-                    ctx.fillStyle = iceBlue; ctx.beginPath(); ctx.moveTo(x+16, y+4); ctx.lineTo(x+24, y+24); ctx.lineTo(x+8, y+24); ctx.fill();
-                    ctx.fillStyle = "white"; ctx.fillRect(x+14, y+8, 4, 16);
-                    break;
-                case 31: // Snowy Bush
-                    ctx.fillStyle = darkStem; ctx.fillRect(x+14, y+24, 4, 8);
-                    ctx.fillStyle = "#2e7d32"; ctx.fillRect(x+6, y+16, 20, 10);
-                    ctx.fillStyle = "white"; ctx.fillRect(x+6, y+14, 20, 4); ctx.fillRect(x+10, y+18, 4, 4);
-                    break;
-                case 32: // Frozen flower
-                    ctx.fillStyle = "#4fc3f7"; ctx.fillRect(x+14, y+16, 4, 16);
-                    ctx.fillStyle = "#b3e5fc"; ctx.fillRect(x+10, y+8, 12, 10);
-                    ctx.fillStyle = "white"; ctx.fillRect(x+10, y+8, 4, 4); ctx.fillRect(x+18, y+8, 4, 4);
-                    break;
-                case 33: // Ice Grass
-                    ctx.fillStyle = iceBlue; ctx.fillRect(x+8, y+10, 2, 22); ctx.fillRect(x+16, y+6, 2, 26); ctx.fillRect(x+24, y+14, 2, 18);
-                    break;
-                case 34: // Glowing Bulb
-                    ctx.fillStyle = "#4fc3f7"; ctx.fillRect(x+14, y+20, 4, 12);
-                    ctx.fillStyle = "white"; ctx.fillRect(x+10, y+8, 12, 12);
-                    ctx.fillStyle = "#00e5ff"; ctx.fillRect(x+13, y+11, 6, 6);
-                    break;
+                case 30: ctx.fillStyle = iceBlue; ctx.beginPath(); ctx.moveTo(x+16, y+4); ctx.lineTo(x+24, y+24); ctx.lineTo(x+8, y+24); ctx.fill(); ctx.fillStyle = "white"; ctx.fillRect(x+14, y+8, 4, 16); break;
+                case 31: ctx.fillStyle = darkStem; ctx.fillRect(x+14, y+24, 4, 8); ctx.fillStyle = "#2e7d32"; ctx.fillRect(x+6, y+16, 20, 10); ctx.fillStyle = "white"; ctx.fillRect(x+6, y+14, 20, 4); ctx.fillRect(x+10, y+18, 4, 4); break;
+                case 32: ctx.fillStyle = "#4fc3f7"; ctx.fillRect(x+14, y+16, 4, 16); ctx.fillStyle = "#b3e5fc"; ctx.fillRect(x+10, y+8, 12, 10); ctx.fillStyle = "white"; ctx.fillRect(x+10, y+8, 4, 4); ctx.fillRect(x+18, y+8, 4, 4); break;
+                case 33: ctx.fillStyle = iceBlue; ctx.fillRect(x+8, y+10, 2, 22); ctx.fillRect(x+16, y+6, 2, 26); ctx.fillRect(x+24, y+14, 2, 18); break;
+                case 34: ctx.fillStyle = "#4fc3f7"; ctx.fillRect(x+14, y+20, 4, 12); ctx.fillStyle = "white"; ctx.fillRect(x+10, y+8, 12, 12); ctx.fillStyle = "#00e5ff"; ctx.fillRect(x+13, y+11, 6, 6); break;
             }
         }
 
@@ -770,6 +867,13 @@
                     }
                 }
             }
+            
+            // GHOSTS
+            for (let pid in otherPlayers) {
+                let p = otherPlayers[pid];
+                ctx.fillStyle = 'rgba(231, 76, 60, 0.5)'; ctx.fillRect(p.x, p.y, 20, 44);
+            }
+
             drawPlayer();
             if (mouseTile.c >= 0) {
                 ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 2;
@@ -802,7 +906,7 @@
                 const slot = document.createElement('div');
                 let className = 'inv-slot ';
                 if(id < 20) className += 'icon-' + id;
-                else className += 'icon-' + id;
+                else className += 'icon-' + id; 
                 
                 slot.className = className + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`;
@@ -835,13 +939,17 @@
                  if (mode === 'MINE') {
                     let t = world[r][c];
                     if (t !== TILES.AIR) { 
-                        inventory[t]++; world[r][c] = TILES.AIR; updateHUD(); 
+                        inventory[t]++; 
+                        if(channel) broadcastBlock(r, c, TILES.AIR);
+                        world[r][c] = TILES.AIR; updateHUD(); 
                     }
                  } else {
                      let pC = Math.floor((player.x+10)/TILE_SIZE);
                      let pR = Math.floor((player.y+20)/TILE_SIZE);
                      if ((c !== pC || r !== pR) && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
-                         world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
+                         world[r][c] = selectedBlock; inventory[selectedBlock]--; 
+                         if(channel) broadcastBlock(r, c, selectedBlock);
+                         updateHUD();
                      }
                  }
             }
@@ -860,6 +968,8 @@
             const data = JSON.parse(localStorage.getItem('vivaria_v18'));
             if (data) { COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Loaded!"); }
         }
+        function exportSave() { const blob = new Blob([JSON.stringify({ world, player, inventory, COLS, ROWS })], {type: "application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = "vivaria_save.json"; a.click(); }
+        function importSave(input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Imported!"); } catch(err) { alert("Invalid File"); } }; reader.readAsText(file); }
 
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         initWorld(COLS, ROWS);
