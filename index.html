@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v4.0 - Adventure Update</title>
+    <title>Vivaria v4.1 - Gardening Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -65,8 +65,9 @@
         .icon-10 { background: #ffeb3b; border: 1px solid gold; } 
         .icon-11 { background: #e3f2fd; } 
         .icon-12 { background: #a1887f; border: 1px solid #5d4037; } 
-        .icon-13 { background: #b3e5fc; border: 2px solid #00bcd4; } /* Diamond */
-        .icon-20 { background: radial-gradient(circle, red, green); } 
+        .icon-13 { background: #b3e5fc; border: 2px solid #00bcd4; } 
+        /* Flower Icons */
+        .icon-flower { background: radial-gradient(circle, #ff4081, #2e7d32); }
 
         #modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -91,7 +92,6 @@
         .craft-btn { background: #d35400; border-color: #e67e22; width: 100%; margin-top:5px; }
         .craft-btn:hover { background: #e67e22; }
 
-        /* File Input Hidden */
         #file-input { display: none; }
 
         canvas { display: block; cursor: crosshair; }
@@ -114,7 +114,7 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.0</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v4.1</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
@@ -178,7 +178,7 @@
         let selectedBlock = TILES.DIRT;
         let mode = 'MINE'; 
         let tickCount = 0;
-        let worldSeed = Math.random() * 10000; // Random seed for terrain
+        let worldSeed = Math.random() * 10000;
 
         function pseudoRandom(x, y) {
             return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
@@ -199,25 +199,21 @@
         function initWorld(w, h) {
             COLS = w; ROWS = h;
             world = [];
-            worldSeed = Math.random() * 10000; // New random seed
+            worldSeed = Math.random() * 10000; 
             let surfaceLevel = Math.floor(ROWS * 0.35);
             let heights = new Array(COLS).fill(0);
 
             for (let r = 0; r < ROWS; r++) {
                 let row = [];
                 for (let c = 0; c < COLS; c++) {
-                    // Randomize terrain using worldSeed offset
                     let cx = c + worldSeed; 
-                    
-                    // Height Map
                     let heightNoise = Math.sin(cx * 0.04) * 5 + Math.sin(cx * 0.1) * 2;
                     let actualSurface = Math.floor(surfaceLevel + heightNoise);
                     if (r === 0) heights[c] = actualSurface;
 
-                    // Biome Map
                     let biomeNoise = Math.sin(cx * 0.015) + (Math.sin(cx * 0.05) * 0.1); 
-                    
                     let surfaceBlock, subBlock;
+
                     if (biomeNoise > 0.4 && biomeNoise < 0.6) {
                         if (Math.random() > 0.5) { surfaceBlock = TILES.SAND; subBlock = TILES.SAND; }
                         else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
@@ -239,11 +235,10 @@
                     } else if (r > actualSurface && r < actualSurface + 15) {
                         row.push(subBlock);
                     } else {
-                        // Ore Generation
                         let rand = Math.random();
                         if (rand < 0.015) row.push(TILES.COAL_ORE);
                         else if (rand < 0.018 && r > actualSurface + 25) row.push(TILES.GOLD_ORE);
-                        else if (rand < 0.019 && r > ROWS - 15) row.push(TILES.DIAMOND_ORE); // Deep diamonds
+                        else if (rand < 0.019 && r > ROWS - 15) row.push(TILES.DIAMOND_ORE); 
                         else row.push(TILES.STONE);
                     }
                 }
@@ -321,8 +316,8 @@
                     for (let r = ROWS - 2; r >= 0; r--) {
                         let tile = world[r][c];
                         let isTerrain = (tile === TILES.DIRT || tile === TILES.GRASS || tile === TILES.STONE || tile === TILES.MUD || tile === TILES.SAND || tile === TILES.SNOW);
-                        let isFlower = (tile >= 20 && tile <= 34);
-                        if ((isTerrain || isFlower) && world[r+1][c] === TILES.AIR) world[r][c] = TILES.AIR;
+                        // Flowers are allowed to stay if supported by any non-air/non-water
+                        if (isTerrain && world[r+1][c] === TILES.AIR) world[r][c] = TILES.AIR;
                     }
                 }
             }
@@ -338,10 +333,13 @@
                 for (let c = startC; c !== endC; c += step) {
                     let tile = world[r][c];
 
+                    // Flower Physics
                     if (tile >= 20 && tile <= 34) { 
                         let below = world[r+1][c];
+                        // Break if AIR or WATER is below. 
+                        // NOTE: Leaves (8), Wood (7), Dirt (1) are valid supports.
                         if (below === TILES.AIR || below === TILES.WATER) {
-                            world[r][c] = TILES.AIR; // Break if no support
+                            world[r][c] = TILES.AIR; // Pop
                         }
                         continue;
                     }
@@ -364,28 +362,27 @@
                             }
                         }
 
-                        // Try Move Down
+                        // Move Down
                         let down = world[r+1][c];
                         if (down === TILES.AIR) {
                             world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (down >= 20 && down <= 34) {
-                            // DESTROY FLOWER
-                            inventory[down]++; 
-                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; updateHUD(); continue;
+                            // Wash Flower
+                            inventory[down]++; updateHUD();
+                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
                         } else if (isPermeable(down)) {
                             if (r+2 < ROWS && world[r+2][c] === TILES.AIR) {
                                 world[r][c] = TILES.AIR; world[r+2][c] = TILES.WATER; continue;
                             }
                         }
 
-                        // Try Move Sideways
+                        // Move Sideways
                         let left = (c > 0) ? world[r][c-1] : -1;
                         let right = (c < COLS-1) ? world[r][c+1] : -1;
                         
                         let canLeft = (left === TILES.AIR || (left >= 20 && left <= 34));
                         let canRight = (right === TILES.AIR || (right >= 20 && right <= 34));
                         
-                        // Permeable Sideways
                         if (!canLeft && isPermeable(left) && c > 1 && world[r][c-2] === TILES.AIR) canLeft = true; 
                         if (!canRight && isPermeable(right) && c < COLS-2 && world[r][c+2] === TILES.AIR) canRight = true;
 
@@ -406,7 +403,7 @@
             if (target === TILES.AIR) {
                 world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
             } 
-            else if (target >= 20 && target <= 34) { // Wash away flower
+            else if (target >= 20 && target <= 34) { 
                 inventory[target]++; updateHUD();
                 world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
             }
@@ -524,10 +521,8 @@
             if (!base) return 'magenta';
 
             let depth = Math.max(0, row - 10);
-            // ADAPTIVE LIGHTING: Slower decay for deeper worlds
             let decay = 25 / ROWS; 
             let lightness = Math.max(25, base[2] - (depth * decay));
-            
             return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
         }
 
@@ -541,7 +536,7 @@
             }
 
             let depth = Math.max(0, r - 15);
-            let decay = 1.0 / ROWS; // Adaptive shadow
+            let decay = 1.0 / ROWS; 
             let shade = Math.min(0.75, depth * decay); 
 
             function fill(color) {
@@ -553,7 +548,7 @@
                 }
             }
 
-            // TEXTURES (Same as before, plus Diamond)
+            // TEXTURES
             if (tileType === TILES.DIRT) {
                 fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
                 let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
@@ -604,7 +599,7 @@
                 ctx.fillRect(x+10, y+10, 8, 8); ctx.fillRect(x+20, y+20, 4, 4);
             }
             else if (tileType === TILES.DIAMOND_ORE) {
-                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#00e5ff"; // Cyan
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#00e5ff"; 
                 ctx.fillRect(x+10, y+8, 6, 6); ctx.fillRect(x+18, y+20, 4, 4); ctx.fillRect(x+6, y+20, 4, 4);
             }
         }
@@ -694,7 +689,7 @@
                 const slot = document.createElement('div');
                 let className = 'inv-slot ';
                 if(id < 20) className += 'icon-' + id;
-                else className += 'icon-20'; 
+                else className += 'icon-flower'; 
                 
                 slot.className = className + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`;
@@ -710,8 +705,7 @@
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
             if (e.code === 'KeyC') { craftPlanks(); }
             if (e.key >= '1' && e.key <= '9') {
-                // Just basic block selection for first 9
-                // HUD clicking handles the rest
+                // Basic selections
             }
         });
         window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -732,6 +726,7 @@
                  } else {
                      let pC = Math.floor((player.x+10)/TILE_SIZE);
                      let pR = Math.floor((player.y+20)/TILE_SIZE);
+                     // Allow placing on leaves/wood/etc
                      if ((c !== pC || r !== pR) && world[r][c] === TILES.AIR && inventory[selectedBlock] > 0) {
                          world[r][c] = selectedBlock; inventory[selectedBlock]--; updateHUD();
                      }
