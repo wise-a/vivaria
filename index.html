@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria v6.6 - Ghost Trees</title>
+    <title>Vivaria v6.7 - Clock Update</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -149,12 +149,15 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.6</h1>
-                <div style="font-size: 8px; color: #bdc3c7; margin-bottom: 5px;" id="time-display">Day 1 - 12:00 PM</div>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v6.7</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
-            <div class="hud-panel" style="text-align: right;">
+            
+            <div class="hud-panel" style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                <canvas id="clockCanvas" width="50" height="50" style="background:#222; border-radius:50%; border:2px solid #f1c40f; margin-bottom:5px;"></canvas>
+                <div style="font-size: 8px; color: #f1c40f; margin-bottom: 10px;" id="time-display">12:00 PM</div>
+                
                 <div style="font-size: 10px; color: #bdc3c7; line-height: 1.6;">
                     [Arrows] Move<br>[Space] Jump<br>[E] Mode<br>[C] Craft Planks<br>[T] Craft Torches
                 </div>
@@ -278,6 +281,7 @@
             else if (worldTime < 22000) { globalLightLevel = 0.5; currentSky = skyColors.night; } 
             else { let t = (worldTime - 22000) / 2000; globalLightLevel = lerp(0.5, 0.6, t); currentSky = lerpColor(skyColors.night, skyColors.dawn, t); }
 
+            // Update Clock Text
             if (tickCount % 60 === 0) {
                 let hour = Math.floor(worldTime / 1000); let ampm = hour >= 12 ? "PM" : "AM"; hour = hour % 12; if(hour === 0) hour = 12;
                 let day = Math.floor(tickCount / DAY_LENGTH) + 1;
@@ -287,23 +291,44 @@
             clouds.forEach(c => { c.x += c.speed; if (c.x > COLS * TILE_SIZE) c.x = -c.width; });
             fog.forEach(f => { f.x += f.speed; if (f.x + f.width < 0) f.x = COLS * TILE_SIZE; });
         }
+
+        function drawClock() {
+            const c = document.getElementById('clockCanvas');
+            const cx = c.getContext('2d');
+            cx.clearRect(0,0,50,50);
+
+            const centerX = 25; const centerY = 25; const radius = 22;
+
+            // Draw Sky Background (matches game sky)
+            cx.fillStyle = `rgb(${currentSky[0]}, ${currentSky[1]}, ${currentSky[2]})`;
+            cx.beginPath(); cx.arc(centerX, centerY, radius, 0, Math.PI*2); cx.fill();
+
+            // Rotation: 0=Dawn(Left), 6000=Noon(Top), 12000=Dusk(Right), 18000=Midnight(Bottom)
+            // Angle logic: Dawn(0) needs to be PI. Noon(6000) needs to be 1.5PI.
+            let angle = ((worldTime / DAY_LENGTH) * 2 * Math.PI) + Math.PI;
+
+            // Draw Sun
+            let sunX = centerX + Math.cos(angle) * 16;
+            let sunY = centerY + Math.sin(angle) * 16;
+            cx.fillStyle = "#f1c40f";
+            cx.beginPath(); cx.arc(sunX, sunY, 5, 0, Math.PI*2); cx.fill();
+
+            // Draw Moon (opposite side)
+            let moonX = centerX + Math.cos(angle + Math.PI) * 16;
+            let moonY = centerY + Math.sin(angle + Math.PI) * 16;
+            cx.fillStyle = "#ecf0f1";
+            cx.beginPath(); cx.arc(moonX, moonY, 4, 0, Math.PI*2); cx.fill();
+        }
         
         function lerp(start, end, t) { return start * (1 - t) + end * t; }
         function lerpColor(c1, c2, t) { return [ Math.round(lerp(c1[0], c2[0], t)), Math.round(lerp(c1[1], c2[1], t)), Math.round(lerp(c1[2], c2[2], t)) ]; }
         
-        // --- PHYSICS DEFINITIONS ---
-        // Permeable: Water can destroy/flow into this
-        function isPermeable(tile) { 
-            return tile === TILES.TORCH || (tile >= 20 && tile <= 34); 
-        }
-        
-        // Solid: Player hits this
+        function isPermeable(tile) { return tile === TILES.TORCH || (tile >= 20 && tile <= 34); }
         function isSolid(tile) { 
             if (tile === TILES.AIR) return false;
             if (tile === TILES.WATER) return false;
             if (isPermeable(tile)) return false;
-            // NEW: Trees are non-solid to player, but block water
-            if (tile === TILES.WOOD || tile === TILES.LEAVES) return false;
+            if (tile === TILES.WOOD || tile === TILES.LEAVES) return false; // GHOST TREE LOGIC
             return true; 
         }
         
@@ -731,6 +756,7 @@
             tickCount++;
             updatePlayer();
             updateAtmosphere();
+            drawClock();
             if (tickCount % 2 === 0) updateCellularAutomata();
             draw();
         }
