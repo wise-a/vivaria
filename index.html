@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vivaria - Erosion Update</title>
+    <title>Vivaria v3.5 - Permeable Fluids</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         :root {
             --pixel-font: 'Press Start 2P', cursive;
-            --ui-bg: rgba(20, 20, 30, 0.9);
+            --ui-bg: rgba(20, 20, 30, 0.95);
             --ui-border: #4a69bd;
             --highlight: #f1c40f;
         }
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000;
+            background-color: #87CEEB;
             color: white;
             font-family: var(--pixel-font);
             display: flex;
@@ -37,9 +37,12 @@
             pointer-events: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.6);
         }
 
-        #inventory-bar { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; max-width: 400px;}
+        #inventory-bar { 
+            display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; 
+            max-width: 600px; max-height: 100px; overflow-y: auto;
+        }
         .inv-slot {
-            width: 40px; height: 40px; background-color: rgba(0,0,0,0.5);
+            width: 36px; height: 36px; background-color: rgba(0,0,0,0.5);
             border: 2px solid #555; position: relative; cursor: pointer; transition: transform 0.1s;
         }
         .inv-slot:hover { transform: scale(1.1); border-color: white; }
@@ -49,16 +52,24 @@
         }
         .selected { border-color: var(--highlight); box-shadow: 0 0 8px var(--highlight); }
 
-        .icon-1 { background: linear-gradient(135deg, #4a2e1b, #2a1a0f); } 
-        .icon-2 { background: linear-gradient(to bottom, #2ecc71 40%, #4a2e1b 40%); } 
-        .icon-3 { background: linear-gradient(135deg, #7f8c8d, #2c3e50); } 
-        .icon-4 { background: linear-gradient(135deg, #f1c40f, #b7950b); } 
-        .icon-5 { background: rgba(52, 152, 219, 0.8); } 
-        .icon-6 { background: linear-gradient(135deg, #3e2723, #1b110f); } 
+        /* HUD Icons */
+        .icon-1 { background: #5d4037; } 
+        .icon-2 { background: linear-gradient(#4caf50, #5d4037); } 
+        .icon-3 { background: #78909c; } 
+        .icon-4 { background: #fdd835; } 
+        .icon-5 { background: #29b6f6; } 
+        .icon-6 { background: #3e2723; } 
+        .icon-7 { background: #795548; } 
+        .icon-8 { background: #2e7d32; } 
+        .icon-9 { background: #212121; border: 1px dashed #555; } 
+        .icon-10 { background: #ffeb3b; border: 1px solid gold; } 
+        .icon-11 { background: #e3f2fd; } 
+        .icon-12 { background: #a1887f; border: 1px solid #5d4037; } 
+        .icon-20 { background: radial-gradient(circle, red, green); } 
 
         #modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); display: none;
+            background: rgba(0,0,0,0.85); display: none;
             justify-content: center; align-items: center; pointer-events: auto; z-index: 20;
         }
         .modal-box { background: var(--ui-bg); border: 4px solid var(--highlight); padding: 30px; text-align: center; }
@@ -75,17 +86,22 @@
         }
         button:hover { background: #2c3e50; border-color: var(--highlight); }
 
+        .craft-btn { background: #d35400; border-color: #e67e22; width: 100%; margin-top:5px; margin-left: 0;}
+        .craft-btn:hover { background: #e67e22; }
+
         canvas { display: block; cursor: crosshair; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #f1c40f; }
     </style>
 </head>
 <body>
 
     <div id="modal-overlay">
         <div class="modal-box">
-            <h2 style="color: #f1c40f; margin-bottom: 20px;">GENERATE NEW WORLD</h2>
-            <button class="size-btn" onclick="confirmNewWorld(100, 50)">SMALL (100x50)</button>
-            <button class="size-btn" onclick="confirmNewWorld(200, 80)">MEDIUM (200x80)</button>
-            <button class="size-btn" onclick="confirmNewWorld(400, 120)">LARGE (400x120)</button>
+            <h2 style="color: #f1c40f; margin-bottom: 20px;">NEW WORLD GENERATION</h2>
+            <button class="size-btn" onclick="confirmNewWorld(150, 60)">STANDARD (150x60)</button>
+            <button class="size-btn" onclick="confirmNewWorld(300, 100)">LARGE (300x100)</button>
+            <button class="size-btn" onclick="confirmNewWorld(600, 150)">MASSIVE (600x150)</button>
             <button class="size-btn" style="background:#c0392b" onclick="closeModal()">CANCEL</button>
         </div>
     </div>
@@ -93,13 +109,16 @@
     <div id="ui-layer">
         <div class="top-bar" style="display:flex; justify-content:space-between;">
             <div class="hud-panel">
-                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA</h1>
+                <h1 style="font-size: 16px; margin:0 0 10px 0; color: #f1c40f;">VIVARIA v3.5</h1>
                 <div id="tool-display" style="color: #ff7675; font-size: 12px; margin-bottom:5px;">⛏️ MINING</div>
                 <div id="inventory-bar"></div>
             </div>
             <div class="hud-panel" style="text-align: right;">
                 <div style="font-size: 10px; color: #bdc3c7; line-height: 1.6;">
-                    [Arrows] Move<br>[Space] Jump/Swim<br>[E] Mode<br>[1-6] Items
+                    [Arrows] Move<br>[Space] Jump<br>[E] Mode<br>[C] Craft Planks
+                </div>
+                <div style="margin-top:10px;">
+                    <button class="craft-btn" onclick="craftPlanks()">Craft Planks</button>
                 </div>
             </div>
         </div>
@@ -113,7 +132,6 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // --- CONFIG ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = false;
@@ -128,24 +146,24 @@
         const SWIM_FORCE = 1.5; 
         const BUOYANCY = -0.15; 
         
-        const TILES = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6 };
-        
-        const BASE_COLORS = {
-            1: [25, 59, 25],  
-            2: [130, 65, 45], 
-            3: [210, 10, 45], 
-            4: [48, 85, 50],  
-            6: [20, 30, 20]   
+        const TILES = { 
+            AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6,
+            WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12
         };
 
+        const BASE_COLORS = {
+            1: [28, 45, 30], 2: [100, 60, 35], 3: [210, 10, 50], 4: [45, 90, 60], 
+            6: [20, 35, 25], 7: [30, 55, 30], 8: [120, 50, 35], 9: [0, 0, 20], 
+            10: [50, 100, 50], 11: [200, 30, 90], 12: [35, 50, 50]
+        };
+        
         let world = [];
         let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false };
         let camera = { x: 0, y: 0 };
         let mouseTile = { c: -1, r: -1 };
-        
         let inventory = {}; 
         Object.values(TILES).forEach(v => { if(v !== 0) inventory[v] = 0; });
-        
+        for(let i=20; i<=34; i++) inventory[i] = 0; 
         let selectedBlock = TILES.DIRT;
         let mode = 'MINE'; 
         let tickCount = 0;
@@ -154,51 +172,110 @@
             return Math.sin(x * 12.9898 + y * 78.233) * 43758.5453 - Math.floor(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453);
         }
 
+        // --- HELPERS FOR PHYSICS/LOGIC ---
+        function isPermeable(tile) {
+            // Things water can flow "through" (tunnel past)
+            return tile === TILES.WOOD || tile === TILES.LEAVES || (tile >= 20 && tile <= 34);
+        }
+
+        function isSolid(tile) {
+            if (tile === TILES.AIR) return false;
+            if (tile === TILES.WATER) return false;
+            if (isPermeable(tile)) return false;
+            return true;
+        }
+
+        // --- WORLD GENERATION ---
         function initWorld(w, h) {
             COLS = w; ROWS = h;
             world = [];
-            let surfaceLevel = Math.floor(ROWS * 0.3);
+            let surfaceLevel = Math.floor(ROWS * 0.35);
             let heights = new Array(COLS).fill(0);
 
             for (let r = 0; r < ROWS; r++) {
                 let row = [];
                 for (let c = 0; c < COLS; c++) {
-                    let biomeNoise = Math.sin(c * 0.015) + (Math.sin(c * 0.05) * 0.1); 
-                    let isDesert = biomeNoise > 0.65; 
-
-                    let heightMod;
-                    if (isDesert) heightMod = Math.floor(Math.sin(c * 0.1) * 2) + Math.floor(Math.sin(c * 0.02) * 4);
-                    else heightMod = Math.floor(Math.sin(c * 0.05) * 5) + Math.floor(Math.sin(c * 0.2) * 2);
-                    
-                    let actualSurface = surfaceLevel + heightMod;
+                    let heightNoise = Math.sin(c * 0.04) * 5 + Math.sin(c * 0.1) * 2;
+                    let actualSurface = Math.floor(surfaceLevel + heightNoise);
                     if (r === 0) heights[c] = actualSurface;
+
+                    let biomeNoise = Math.sin(c * 0.015) + (Math.sin(c * 0.05) * 0.1); 
+                    let surfaceBlock, subBlock;
+
+                    if (biomeNoise > 0.4 && biomeNoise < 0.6) {
+                        if (Math.random() > 0.5) { surfaceBlock = TILES.SAND; subBlock = TILES.SAND; }
+                        else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
+                    } else if (biomeNoise < -0.4 && biomeNoise > -0.6) {
+                        if (Math.random() > 0.5) { surfaceBlock = TILES.SNOW; subBlock = TILES.DIRT; }
+                        else { surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT; }
+                    } else if (biomeNoise > 0.5) {
+                        surfaceBlock = TILES.SAND; subBlock = TILES.SAND;
+                    } else if (biomeNoise < -0.5) {
+                        surfaceBlock = TILES.SNOW; subBlock = TILES.DIRT;
+                    } else {
+                        surfaceBlock = TILES.GRASS; subBlock = TILES.DIRT;
+                    }
 
                     if (r < actualSurface) {
                         row.push(TILES.AIR);
                     } else if (r === actualSurface) {
-                        if (isDesert) row.push(TILES.SAND);
-                        else row.push(TILES.GRASS);
+                        row.push(surfaceBlock);
                     } else if (r > actualSurface && r < actualSurface + 15) {
-                        if (isDesert) row.push(TILES.SAND); 
-                        else row.push(TILES.DIRT);
+                        row.push(subBlock);
                     } else {
-                        row.push(TILES.STONE);
+                        if (Math.random() < 0.015) row.push(TILES.COAL_ORE);
+                        else if (Math.random() < 0.005 && r > actualSurface + 25) row.push(TILES.GOLD_ORE);
+                        else row.push(TILES.STONE);
                     }
                 }
                 world.push(row);
             }
 
-            for(let i=0; i < COLS/35; i++) {
-                let lakeX = Math.floor(Math.random() * (COLS - 10)) + 5;
-                let surfaceY = heights[lakeX];
-                carveLake(lakeX, surfaceY);
+            for(let i=0; i < COLS/40; i++) {
+                let lakeX = Math.floor(Math.random() * (COLS - 20)) + 10;
+                carveLake(lakeX, heights[lakeX]);
+            }
+
+            for(let c=2; c < COLS-2; c++) {
+                let r = heights[c];
+                let ground = world[r][c];
+                let plantY = r - 1;
+
+                if (ground === TILES.GRASS && Math.random() < 0.12) {
+                    growTree(plantY, c);
+                    c += 2;
+                } else if (world[plantY][c] === TILES.AIR) {
+                    if (Math.random() < 0.3) {
+                        let flowerId = 0;
+                        if (ground === TILES.GRASS) flowerId = 20 + Math.floor(Math.random() * 5);
+                        else if (ground === TILES.SAND) flowerId = 25 + Math.floor(Math.random() * 5);
+                        else if (ground === TILES.SNOW) flowerId = 30 + Math.floor(Math.random() * 5);
+                        if (flowerId > 0) world[plantY][c] = flowerId;
+                    }
+                }
             }
             
             cleanupFloatingBlocks();
-
             player.x = (COLS * TILE_SIZE) / 2;
             player.y = 0; player.vx = 0; player.vy = 0;
             updateHUD();
+        }
+
+        function growTree(baseR, baseC) {
+            let height = 4 + Math.floor(Math.random() * 3);
+            for(let h=0; h < height; h++) {
+                if(baseR-h >= 0) world[baseR-h][baseC] = TILES.WOOD;
+            }
+            let crownY = baseR - height + 1;
+            for(let y = crownY - 2; y <= crownY + 1; y++) {
+                for(let x = baseC - 2; x <= baseC + 2; x++) {
+                    if (y >= 0 && y < ROWS && x >= 0 && x < COLS) {
+                        if (Math.abs(x - baseC) + Math.abs(y - crownY) <= 3) {
+                             if(world[y][x] === TILES.AIR) world[y][x] = TILES.LEAVES;
+                        }
+                    }
+                }
+            }
         }
 
         function carveLake(cx, cy) {
@@ -220,18 +297,19 @@
         }
 
         function cleanupFloatingBlocks() {
-            for (let c = 0; c < COLS; c++) {
-                for (let r = ROWS - 2; r >= 0; r--) {
-                    let tile = world[r][c];
-                    if ((tile === TILES.DIRT || tile === TILES.GRASS || tile === TILES.STONE || tile === TILES.MUD) && 
-                        world[r+1][c] === TILES.AIR) {
-                        world[r][c] = TILES.AIR;
+            for(let i=0; i<2; i++) {
+                for (let c = 0; c < COLS; c++) {
+                    for (let r = ROWS - 2; r >= 0; r--) {
+                        let tile = world[r][c];
+                        let isTerrain = (tile === TILES.DIRT || tile === TILES.GRASS || tile === TILES.STONE || tile === TILES.MUD || tile === TILES.SAND || tile === TILES.SNOW);
+                        let isFlower = (tile >= 20 && tile <= 34);
+                        if ((isTerrain || isFlower) && world[r+1][c] === TILES.AIR) world[r][c] = TILES.AIR;
                     }
                 }
             }
         }
 
-        // --- FLUID SIM & EROSION ---
+        // --- FLUID SIM (UPDATED FOR PERMEABILITY) ---
         function updateCellularAutomata() {
             let startC = tickCount % 2 === 0 ? 0 : COLS - 1;
             let endC = tickCount % 2 === 0 ? COLS : -1;
@@ -241,8 +319,14 @@
                 for (let c = startC; c !== endC; c += step) {
                     let tile = world[r][c];
 
-                    // SAND
+                    if (tile >= 20 && tile <= 34) { // Flowers break if floating
+                        let below = world[r+1][c];
+                        if (below === TILES.AIR || below === TILES.WATER) world[r][c] = TILES.AIR;
+                        continue;
+                    }
+
                     if (tile === TILES.SAND) {
+                        // Standard Sand Falling
                         if (world[r+1][c] === TILES.AIR || world[r+1][c] === TILES.WATER) {
                             world[r][c] = world[r+1][c]; world[r+1][c] = TILES.SAND;
                         } else if (world[r+1][c-1] === TILES.AIR && world[r][c-1] === TILES.AIR) {
@@ -251,46 +335,92 @@
                              world[r][c] = TILES.AIR; world[r+1][c+1] = TILES.SAND;
                         }
                     }
-
-                    // WATER
+                    
                     if (tile === TILES.WATER) {
-                        // NEW EROSION LOGIC
+                        // Check Erosion
                         if (r + 1 < ROWS) {
                             let below = world[r+1][c];
-                            if (below === TILES.DIRT || below === TILES.GRASS) {
-                                // 1/150 chance per update (~5 seconds average)
-                                if (Math.random() < 0.007) {
-                                    world[r+1][c] = TILES.MUD;
-                                }
+                            if ((below === TILES.DIRT || below === TILES.GRASS) && Math.random() < 0.005) {
+                                world[r+1][c] = TILES.MUD; 
                             }
                         }
 
-                        // Water Movement
-                        if (world[r+1][c] === TILES.AIR) {
-                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER;
-                        } else {
-                            let left = (c > 0 && world[r][c-1] === TILES.AIR);
-                            let right = (c < COLS-1 && world[r][c+1] === TILES.AIR);
-                            if (left && right) {
-                                if (Math.random() > 0.5) { world[r][c] = TILES.AIR; world[r][c+1] = TILES.WATER; }
-                                else { world[r][c] = TILES.AIR; world[r][c-1] = TILES.WATER; }
-                            } else if (left) {
-                                world[r][c] = TILES.AIR; world[r][c-1] = TILES.WATER;
-                            } else if (right) {
-                                world[r][c] = TILES.AIR; world[r][c+1] = TILES.WATER;
+                        // --- NEW PERMEABLE FLOW LOGIC ---
+                        // 1. Try Move Down
+                        let down = world[r+1][c];
+                        if (down === TILES.AIR) {
+                            world[r][c] = TILES.AIR; world[r+1][c] = TILES.WATER; continue;
+                        } else if (isPermeable(down)) {
+                            // Try tunnel through vegetation
+                            if (r+2 < ROWS && world[r+2][c] === TILES.AIR) {
+                                world[r][c] = TILES.AIR; world[r+2][c] = TILES.WATER; continue;
                             }
+                        }
+
+                        // 2. Try Move Sideways
+                        let left = (c > 0) ? world[r][c-1] : -1;
+                        let right = (c < COLS-1) ? world[r][c+1] : -1;
+                        
+                        let canLeft = (left === TILES.AIR);
+                        let canRight = (right === TILES.AIR);
+                        
+                        // Check permeability sideways
+                        if (!canLeft && isPermeable(left) && c > 1 && world[r][c-2] === TILES.AIR) canLeft = true; 
+                        if (!canRight && isPermeable(right) && c < COLS-2 && world[r][c+2] === TILES.AIR) canRight = true;
+
+                        if (canLeft && canRight) {
+                            if (Math.random() > 0.5) tryMoveWater(r, c, r, c+1); else tryMoveWater(r, c, r, c-1);
+                        } else if (canLeft) {
+                            tryMoveWater(r, c, r, c-1);
+                        } else if (canRight) {
+                            tryMoveWater(r, c, r, c+1);
                         }
                     }
                 }
             }
         }
 
-        // --- PHYSICS ---
+        function tryMoveWater(r, c, targetR, targetC) {
+            let target = world[targetR][targetC];
+            // Direct Move
+            if (target === TILES.AIR) {
+                world[r][c] = TILES.AIR; world[targetR][targetC] = TILES.WATER;
+            } 
+            // Tunnel Move (skip 1 block)
+            else if (isPermeable(target)) {
+                // Calculate "next" block in that direction
+                let dirR = targetR - r;
+                let dirC = targetC - c;
+                let nextR = targetR + dirR;
+                let nextC = targetC + dirC;
+                
+                if (nextR >= 0 && nextR < ROWS && nextC >= 0 && nextC < COLS) {
+                    if (world[nextR][nextC] === TILES.AIR) {
+                        world[r][c] = TILES.AIR;
+                        world[nextR][nextC] = TILES.WATER;
+                    }
+                }
+            }
+        }
+
+        // --- PHYSICS & CRAFTING ---
         function getTileAt(x, y) {
             let c = Math.floor(x / TILE_SIZE);
             let r = Math.floor(y / TILE_SIZE);
             if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return TILES.AIR;
             return world[r][c];
+        }
+
+        function craftPlanks() {
+            if (inventory[TILES.WOOD] > 0) {
+                let woodAmount = inventory[TILES.WOOD];
+                inventory[TILES.WOOD] = 0;
+                inventory[TILES.PLANKS] += woodAmount * 4;
+                updateHUD();
+                alert(`Crafted ${woodAmount * 4} Planks!`);
+            } else {
+                alert("You need Raw Wood to craft Planks.");
+            }
         }
 
         function updatePlayer() {
@@ -364,8 +494,7 @@
             for (let r = startY; r <= endY; r++) {
                 for (let c = startX; c <= endX; c++) {
                     if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                        let t = world[r][c];
-                        if (t !== TILES.AIR && t !== TILES.WATER) return true;
+                        if (isSolid(world[r][c])) return true;
                     }
                 }
             }
@@ -374,13 +503,12 @@
 
         // --- RENDER ---
         function getLightColor(tileType, row) {
-            if (tileType === TILES.WATER) return 'rgba(52, 152, 219, 0.6)'; 
+            if (tileType === TILES.WATER) return 'rgba(41, 182, 246, 0.6)'; 
             const base = BASE_COLORS[tileType];
-            if (!base) return 'red';
+            if (!base) return 'magenta';
 
-            let depth = Math.max(0, row - 15); 
-            let lightness = Math.max(5, base[2] - (depth * 0.8));
-            
+            let depth = Math.max(0, row - 10);
+            let lightness = Math.max(35, base[2] - (depth * 0.4));
             return `hsl(${base[0]}, ${base[1]}%, ${lightness}%)`;
         }
 
@@ -388,28 +516,93 @@
             const x = c * TILE_SIZE;
             const y = r * TILE_SIZE;
             
-            ctx.fillStyle = getLightColor(tileType, r);
-            ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+            if (tileType >= 20 && tileType <= 34) {
+                drawPlant(x, y, tileType);
+                return;
+            }
 
-            if (tileType === TILES.DIRT || tileType === TILES.GRASS) {
-                ctx.fillStyle = "rgba(0,0,0,0.15)";
-                for(let i=0; i<3; i++) {
-                    let px = Math.abs(pseudoRandom(c*i, r*i)) * TILE_SIZE % TILE_SIZE;
-                    let py = Math.abs(pseudoRandom(r*i, c*i)) * TILE_SIZE % TILE_SIZE;
-                    ctx.fillRect(x + px, y + py, 4, 4);
+            let depth = Math.max(0, r - 15);
+            let shade = Math.min(0.75, depth * 0.015); 
+
+            function fill(color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                if (shade > 0) {
+                    ctx.fillStyle = `rgba(0,0,0,${shade})`;
+                    ctx.fillRect(x,y,TILE_SIZE,TILE_SIZE);
                 }
             }
-            if (tileType === TILES.GRASS) {
-                ctx.fillStyle = getLightColor(TILES.GRASS, r-5);
-                ctx.fillRect(x, y, TILE_SIZE, 6);
+
+            if (tileType === TILES.DIRT) {
+                fill(getLightColor(1, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
+                let s = (c*r)%5; if(s==0) ctx.fillRect(x+4,y+4,4,4); if(s==1) ctx.fillRect(x+20,y+10,4,4);
             }
-            if (tileType === TILES.STONE) {
-                ctx.fillStyle = "rgba(255,255,255,0.05)";
-                if (pseudoRandom(c,r) > 0.5) ctx.fillRect(x+4, y+4, 10, 2);
+            else if (tileType === TILES.GRASS) {
+                fill(getLightColor(1, r)); ctx.fillStyle = getLightColor(2, r-5);
+                ctx.fillRect(x, y, TILE_SIZE, 10);
+                ctx.fillRect(x+2, y, 4, 12); ctx.fillRect(x+10, y, 4, 14); ctx.fillRect(x+20, y, 4, 11);
             }
-            if (tileType === TILES.SAND) {
-                ctx.fillStyle = "rgba(0,0,0,0.1)";
-                ctx.fillRect(x+4, y+4, 2, 2); ctx.fillRect(x+20, y+10, 2, 2);
+            else if (tileType === TILES.STONE) {
+                fill(getLightColor(3, r)); ctx.fillStyle = "rgba(0,0,0,0.2)";
+                ctx.fillRect(x, y+8, TILE_SIZE, 2); ctx.fillRect(x, y+24, TILE_SIZE, 2);
+                ctx.fillRect(x+8, y, 2, 8); ctx.fillRect(x+20, y+8, 2, 16);
+            }
+            else if (tileType === TILES.WOOD) {
+                fill(getLightColor(7, r)); ctx.fillStyle = "rgba(40, 20, 0, 0.3)";
+                ctx.fillRect(x+4, y, 2, TILE_SIZE); ctx.fillRect(x+12, y, 2, TILE_SIZE);
+                ctx.fillRect(x+20, y, 2, TILE_SIZE); ctx.fillRect(x+28, y, 2, TILE_SIZE);
+            }
+            else if (tileType === TILES.PLANKS) {
+                fill(getLightColor(12, r)); ctx.fillStyle = "rgba(0,0,0,0.3)";
+                for(let i=1; i<4; i++) ctx.fillRect(x, y + (i*8), TILE_SIZE, 1);
+                ctx.fillStyle = "rgba(0,0,0,0.5)";
+                ctx.fillRect(x+2, y+2, 2, 2); ctx.fillRect(x+28, y+2, 2, 2);
+            }
+            else if (tileType === TILES.LEAVES) {
+                fill(getLightColor(8, r)); ctx.fillStyle = "#66bb6a"; 
+                ctx.fillRect(x+4, y+4, 8, 6); ctx.fillRect(x+18, y+18, 6, 8);
+            }
+            else if (tileType === TILES.SAND) {
+                fill(getLightColor(4, r)); ctx.fillStyle = "rgba(200, 150, 0, 0.2)"; ctx.fillRect(x, y+10, TILE_SIZE, 2);
+            }
+            else if (tileType === TILES.SNOW) {
+                fill('#eceff1'); ctx.fillStyle = "#ffffff"; ctx.fillRect(x, y, TILE_SIZE, 8);
+            }
+            else if (tileType === TILES.WATER) {
+                ctx.fillStyle = "rgba(41, 182, 246, 0.6)"; ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+            }
+            else if (tileType === TILES.MUD) {
+                fill(getLightColor(6, r)); ctx.fillStyle = "#1b0000"; ctx.fillRect(x+2, y+10, 8, 2);
+            }
+            else if (tileType === TILES.COAL_ORE) {
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#212121";
+                ctx.fillRect(x+8, y+8, 8, 8); ctx.fillRect(x+18, y+18, 6, 6);
+            }
+            else if (tileType === TILES.GOLD_ORE) {
+                drawTile(r, c, TILES.STONE); ctx.fillStyle = "#ffeb3b";
+                ctx.fillRect(x+10, y+10, 8, 8); ctx.fillRect(x+20, y+20, 4, 4);
+            }
+        }
+
+        function drawPlant(x, y, id) {
+            let variant = id % 5;
+            if (id >= 20 && id <= 24) { 
+                ctx.fillStyle = "#2e7d32"; ctx.fillRect(x+14, y+16, 4, 16);
+                const colors = ["#e91e63", "#9c27b0", "#ffeb3b", "#2196f3", "#f44336"];
+                ctx.fillStyle = colors[variant]; ctx.fillRect(x+10, y+10, 12, 12); 
+                ctx.fillStyle = "white"; ctx.fillRect(x+14, y+14, 4, 4);
+            }
+            else if (id >= 25 && id <= 29) { 
+                if (variant < 3) {
+                    ctx.fillStyle = "#558b2f"; ctx.fillRect(x+12, y+8, 8, 24);
+                    if(variant==1) ctx.fillRect(x+6, y+14, 6, 4);
+                } else {
+                    ctx.fillStyle = "#795548"; ctx.fillRect(x+14, y+20, 4, 12); ctx.fillRect(x+10, y+16, 12, 2);
+                }
+            }
+            else if (id >= 30 && id <= 34) { 
+                ctx.fillStyle = "#81d4fa"; ctx.fillRect(x+14, y+16, 4, 16);
+                ctx.fillStyle = "#e1f5fe"; ctx.fillRect(x+12, y+10, 8, 8);
             }
         }
 
@@ -419,11 +612,8 @@
             ctx.fillStyle = '#000'; 
             let eyeX = player.facingRight ? player.x + 14 : player.x + 2;
             ctx.fillRect(eyeX, player.y + 4, 4, 4);
-            
             if (player.inWater) {
-                ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                ctx.fillRect(player.x - 4, player.y + 10, 4, 4);
-                ctx.fillRect(player.x + player.width + 2, player.y + 30, 3, 3);
+                ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(player.x - 4, player.y + 10, 4, 4);
             }
         }
 
@@ -471,12 +661,19 @@
 
             const invBar = document.getElementById('inventory-bar');
             invBar.innerHTML = '';
-            const displayOrder = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WATER];
+            
+            const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW, TILES.COAL_ORE, TILES.GOLD_ORE];
+            for(let i=20; i<=34; i++) { if(inventory[i]>0) showList.push(i); }
 
-            displayOrder.forEach(id => {
+            showList.forEach(id => {
                 const slot = document.createElement('div');
-                slot.className = 'inv-slot icon-' + id + (selectedBlock === id ? ' selected' : '');
+                let className = 'inv-slot ';
+                if(id < 20) className += 'icon-' + id;
+                else className += 'icon-20'; 
+                
+                slot.className = className + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`;
+                slot.title = "ID: " + id;
                 slot.onclick = () => { selectedBlock = id; mode = 'BUILD'; updateHUD(); };
                 invBar.appendChild(slot);
             });
@@ -486,8 +683,9 @@
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
-            if (e.key >= '1' && e.key <= '6') {
-                const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WATER];
+            if (e.code === 'KeyC') { craftPlanks(); }
+            if (e.key >= '1' && e.key <= '9') {
+                const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.LEAVES, TILES.WATER, TILES.SNOW];
                 if (map[e.key]) { selectedBlock = map[e.key]; mode = 'BUILD'; updateHUD(); }
             }
         });
@@ -502,8 +700,9 @@
             const c = mouseTile.c, r = mouseTile.r;
             if (r>=0 && r<ROWS && c>=0 && c<COLS) {
                  if (mode === 'MINE') {
-                    if (world[r][c] !== TILES.AIR) { 
-                        inventory[world[r][c]]++; world[r][c] = TILES.AIR; updateHUD(); 
+                    let t = world[r][c];
+                    if (t !== TILES.AIR) { 
+                        inventory[t]++; world[r][c] = TILES.AIR; updateHUD(); 
                     }
                  } else {
                      let pC = Math.floor((player.x+10)/TILE_SIZE);
@@ -522,10 +721,10 @@
             initWorld(w, h); inventory = {}; Object.values(TILES).forEach(v => { if(v!==0) inventory[v]=0; }); closeModal();
         }
         function saveGame() {
-            localStorage.setItem('vivaria_v8', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
+            localStorage.setItem('vivaria_v15', JSON.stringify({ world, player, inventory, COLS, ROWS })); alert("Saved!");
         }
         function loadGame() {
-            const data = JSON.parse(localStorage.getItem('vivaria_v8'));
+            const data = JSON.parse(localStorage.getItem('vivaria_v15'));
             if (data) { COLS = data.COLS; ROWS = data.ROWS; world = data.world; player = data.player; inventory = data.inventory; updateHUD(); alert("Loaded!"); }
         }
 
