@@ -34,8 +34,8 @@ Simply download the index.html file and open it in any modern web browser (Chrom
 
 Vivaria uses a unique "Mode" system toggled by pressing **E**:
 
-* ** Mining Mode (Red HUD):** Clicking any block destroys it and adds it to your inventory.  
-* ** Building Mode (Green HUD):** Clicking empty space places the currently selected block from your inventory.
+* **Mining Mode (Red HUD):** Clicking any block destroys it and adds it to your inventory.  
+* **Building Mode (Green HUD):** Clicking empty space places the currently selected block from your inventory.
 
 ### **2\. First Steps**
 
