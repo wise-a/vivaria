@@ -74,6 +74,25 @@
         .icon-16::after { content:''; position:absolute; top:4px; left:14px; width:4px; height:22px; background:#795548; transform: rotate(15deg); }
         .icon-17 { background: radial-gradient(circle, #ff5722 20%, #3e2723 70%); border: 2px solid #ff9800; } /* Campfire */
 
+        /* TOOLS */
+        .icon-40, .icon-41, .icon-42, .icon-43, .icon-44 { position: relative; background: rgba(0,0,0,0.3); }
+        .icon-40::before, .icon-41::before, .icon-42::before, .icon-43::before, .icon-44::before {
+            content:''; position:absolute; bottom:6px; left:6px; width:4px; height:18px;
+            background:#795548; transform: rotate(-45deg); transform-origin: bottom left; border-radius: 2px;
+        }
+        .icon-40::after, .icon-41::after, .icon-42::after, .icon-43::after, .icon-44::after {
+             content:''; position:absolute; top:4px; left:4px; width:22px; height:22px;
+             border-top: 4px solid currentColor; border-left: 4px solid currentColor;
+             border-top-left-radius: 8px; transform: rotate(-15deg); background: transparent; box-shadow: none;
+             color: inherit;
+        }
+
+        .icon-40 { color: #8d6e63; }
+        .icon-41 { color: #9e9e9e; }
+        .icon-42 { color: #e0e0e0; }
+        .icon-43 { color: #fdd835; }
+        .icon-44 { color: #00e5ff; }
+
         /* Flower Icons */
         .icon-20 { background: radial-gradient(circle, #e91e63 40%, #2e7d32 50%); } 
         .icon-21 { background: radial-gradient(circle, #9c27b0 40%, #2e7d32 50%); } 
@@ -212,7 +231,23 @@
         const TILES = { 
             AIR: 0, DIRT: 1, GRASS: 2, STONE: 3, SAND: 4, WATER: 5, MUD: 6,
             WOOD: 7, LEAVES: 8, COAL_ORE: 9, GOLD_ORE: 10, SNOW: 11, PLANKS: 12, DIAMOND_ORE: 13,
-            ICE: 14, TORCH: 15, STICK: 16, CAMPFIRE: 17
+            ICE: 14, TORCH: 15, STICK: 16, CAMPFIRE: 17,
+            WOOD_PICK: 40, STONE_PICK: 41, IRON_PICK: 42, GOLD_PICK: 43, DIAMOND_PICK: 44
+        };
+
+        const TOOLS = {
+            [TILES.WOOD_PICK]: { id: TILES.WOOD_PICK, power: 2, durability: 30, color: '#8d6e63' },
+            [TILES.STONE_PICK]: { id: TILES.STONE_PICK, power: 4, durability: 60, color: '#9e9e9e' },
+            [TILES.IRON_PICK]: { id: TILES.IRON_PICK, power: 6, durability: 120, color: '#e0e0e0' },
+            [TILES.GOLD_PICK]: { id: TILES.GOLD_PICK, power: 12, durability: 20, color: '#fdd835' },
+            [TILES.DIAMOND_PICK]: { id: TILES.DIAMOND_PICK, power: 10, durability: 500, color: '#00e5ff' }
+        };
+
+        const TILE_HARDNESS = {
+            [TILES.DIRT]: 10, [TILES.GRASS]: 10, [TILES.SAND]: 10, [TILES.SNOW]: 10, [TILES.MUD]: 10,
+            [TILES.WOOD]: 20, [TILES.PLANKS]: 20, [TILES.LEAVES]: 5,
+            [TILES.STONE]: 30, [TILES.COAL_ORE]: 30, [TILES.GOLD_ORE]: 40, [TILES.DIAMOND_ORE]: 50,
+            [TILES.ICE]: 15
         };
 
         const TILE_NAMES = {
@@ -220,6 +255,7 @@
             7: "Raw Wood", 8: "Leaves", 9: "Coal Ore", 10: "Gold Ore", 11: "Snow Block",
             12: "Wood Planks", 13: "Diamond Ore", 14: "Ice Block", 15: "Torch",
             16: "Stick", 17: "Campfire",
+            40: "Wood Pickaxe", 41: "Stone Pickaxe", 42: "Iron Pickaxe", 43: "Gold Pickaxe", 44: "Diamond Pickaxe",
             20: "Rose", 21: "Lavender", 22: "Sunflower", 23: "Bluebell", 24: "Tulip",
             25: "Cactus", 26: "Tall Cactus", 27: "Shrub", 28: "Dead Bush", 29: "Tumbleweed",
             30: "Frost Flower", 31: "Winter Bush", 32: "Snow Berry", 33: "Icicle Plant", 34: "Glacier Lily"
@@ -236,11 +272,13 @@
             { id: 'planks', name: "Wood Planks", out: TILES.PLANKS, count: 4, cost: [{id: TILES.WOOD, count: 1}] },
             { id: 'sticks', name: "Sticks", out: TILES.STICK, count: 10, cost: [{id: TILES.WOOD, count: 1}] },
             { id: 'torches', name: "Torches", out: TILES.TORCH, count: 8, cost: [{id: TILES.PLANKS, count: 1}, {id: TILES.COAL_ORE, count: 1}] },
-            { id: 'campfire', name: "Campfire", out: TILES.CAMPFIRE, count: 1, cost: [{id: TILES.TORCH, count: 1}, {id: TILES.STICK, count: 2}] }
+            { id: 'campfire', name: "Campfire", out: TILES.CAMPFIRE, count: 1, cost: [{id: TILES.TORCH, count: 1}, {id: TILES.STICK, count: 2}] },
+            { id: 'wood_pick', name: "Wood Pickaxe", out: TILES.WOOD_PICK, count: 1, cost: [{id: TILES.WOOD, count: 3}, {id: TILES.STICK, count: 2}] },
+            { id: 'stone_pick', name: "Stone Pickaxe", out: TILES.STONE_PICK, count: 1, cost: [{id: TILES.STONE, count: 3}, {id: TILES.STICK, count: 2}] }
         ];
         
         let world = [];
-        let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false, id: Math.random().toString(36).substr(2, 9) };
+        let player = { x: 0, y: 0, width: 20, height: 44, vx: 0, vy: 0, grounded: false, facingRight: true, inWater: false, id: Math.random().toString(36).substr(2, 9), activeTool: null, currentToolDurability: 0 };
         let torchList = []; 
 
         let channel = null; let otherPlayers = {}; let isAdmin = false;
@@ -253,6 +291,9 @@
         
         let selectedBlock = TILES.DIRT;
         let mode = 'MINE'; 
+        let isMining = false;
+        let miningProgress = 0;
+        let currentMiningTarget = { r: -1, c: -1 };
         let tickCount = 0;
         let worldSeed = Math.random() * 10000;
 
@@ -800,6 +841,33 @@
             drawAtmosphere(1);
 
             if (mouseTile.c >= 0) { ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 2; ctx.strokeRect(mouseTile.c*TILE_SIZE, mouseTile.r*TILE_SIZE, TILE_SIZE, TILE_SIZE); }
+
+            // Draw Mining Crack
+            if (isMining && miningProgress > 0 && currentMiningTarget.r >= 0) {
+                let r = currentMiningTarget.r;
+                let c = currentMiningTarget.c;
+                if (world[r][c] !== TILES.AIR) {
+                    let hardness = TILE_HARDNESS[world[r][c]] || 15;
+                    let ratio = miningProgress / hardness;
+                    let x = c * TILE_SIZE;
+                    let y = r * TILE_SIZE;
+                    ctx.save();
+                    ctx.translate(x + TILE_SIZE/2, y + TILE_SIZE/2);
+
+                    ctx.beginPath();
+                    let stages = Math.floor(ratio * 3) + 1;
+                    ctx.strokeStyle = "rgba(0,0,0,0.7)";
+                    ctx.lineWidth = 2;
+
+                    if(stages >= 1) { ctx.moveTo(0, 0); ctx.lineTo(-5, -8); ctx.moveTo(0, 0); ctx.lineTo(6, 4); }
+                    if(stages >= 2) { ctx.moveTo(0, 0); ctx.lineTo(8, -5); ctx.moveTo(0, 0); ctx.lineTo(-4, 10); }
+                    if(stages >= 3) { ctx.moveTo(0, 0); ctx.lineTo(-10, -2); ctx.moveTo(0, 0); ctx.lineTo(5, 9); }
+
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
             ctx.restore();
             requestAnimationFrame(loop);
         }
@@ -807,10 +875,83 @@
         function loop() {
             tickCount++;
             updatePlayer();
+            updateMining();
             updateAtmosphere();
             drawClock();
             if (tickCount % 2 === 0) updateCellularAutomata();
             draw();
+        }
+
+        function updateMining() {
+            if (!isMining) return;
+            const r = currentMiningTarget.r;
+            const c = currentMiningTarget.c;
+
+            // Validate target
+            if (r < 0 || r >= ROWS || c < 0 || c >= COLS) { isMining = false; miningProgress = 0; return; }
+            const tile = world[r][c];
+            if (tile === TILES.AIR) { isMining = false; miningProgress = 0; return; }
+
+            // Validate distance
+            let tileX = c * TILE_SIZE + TILE_SIZE/2; let tileY = r * TILE_SIZE + TILE_SIZE/2;
+            let playerX = player.x + player.width/2; let playerY = player.y + player.height/2;
+            let dist = Math.sqrt((tileX-playerX)**2 + (tileY-playerY)**2);
+            if (dist > 150) { isMining = false; miningProgress = 0; return; } // Range limit
+
+            // Calculate Power
+            let power = 1;
+            if (player.activeTool && TOOLS[player.activeTool]) {
+                power = TOOLS[player.activeTool].power;
+            }
+
+            miningProgress += power;
+
+            let hardness = TILE_HARDNESS[tile] || 15; // Default hardness
+            if (miningProgress >= hardness) {
+                // Break block
+                inventory[tile]++;
+                if (tile === TILES.TORCH || tile === TILES.CAMPFIRE) removeFromTorchList(r, c);
+                world[r][c] = TILES.AIR;
+
+                // Durability
+                if (player.activeTool) {
+                    player.currentToolDurability--;
+                    if (player.currentToolDurability <= 0) {
+                        inventory[player.activeTool]--;
+                        if (inventory[player.activeTool] > 0) {
+                            player.currentToolDurability = TOOLS[player.activeTool].durability;
+                        } else {
+                            player.activeTool = null;
+                            selectedBlock = TILES.DIRT; // revert to default? or nothing
+                            // Actually, updateHUD will handle showing active item
+                        }
+                    }
+                }
+
+                updateHUD();
+                miningProgress = 0;
+                isMining = false; // Stop mining after break? Or continue? Usually continue if mouse held.
+                // If mouse held, we need to know if we should continue.
+                // Mouse event sets isMining=true. But if block is gone, next frame checks world[r][c] is AIR and stops.
+                // So if user keeps holding, we need to find new target.
+                // But mousemove updates mouseTile.
+                // If we want continuous mining, we should re-evaluate target based on mouse position.
+                // But `updateMining` uses `currentMiningTarget`.
+                // We should update `currentMiningTarget` to `mouseTile` if mouse is still down?
+                // Let's keep it simple: Break one block, stop. User clicks again?
+                // No, prompt says "If the mouse is held down...".
+                // So if broken, we need to re-target.
+                // But `mouseTile` is updated in `mousemove`.
+                // So if I set isMining=false, it stops.
+                // I should probably NOT set isMining=false if mouse is still down.
+                // But `currentMiningTarget` points to Air now.
+                // Next frame: tile === TILES.AIR -> isMining = false.
+                // So mining stops. User has to click again.
+                // To support continuous mining, we need to check mouse state.
+                // We can't check mouse button state in loop easily without tracking it.
+                // Let's assume we track mouseDown state.
+                // I'll add `isMouseDown` variable in next step.
+            }
         }
 
         // --- CONTROLS & UI ---
@@ -821,17 +962,35 @@
             toolDiv.innerText = toolName; toolDiv.style.color = mode === 'MINE' ? "#ff7675" : "#55efc4";
             const invBar = document.getElementById('inventory-bar'); invBar.innerHTML = '';
             const showList = [TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.STICK, TILES.LEAVES, TILES.TORCH, TILES.CAMPFIRE, TILES.WATER, TILES.SNOW, TILES.ICE, TILES.COAL_ORE, TILES.GOLD_ORE, TILES.DIAMOND_ORE];
+            // Add tools to showList
+            [TILES.WOOD_PICK, TILES.STONE_PICK, TILES.IRON_PICK, TILES.GOLD_PICK, TILES.DIAMOND_PICK].forEach(t => { if(inventory[t] > 0) showList.push(t); });
             for(let i=20; i<=34; i++) { if(inventory[i]>0) showList.push(i); }
             showList.forEach(id => {
                 const slot = document.createElement('div');
                 slot.className = 'inv-slot ' + 'icon-' + id + (selectedBlock === id ? ' selected' : '');
                 slot.innerHTML = `<span>${inventory[id]}</span>`; slot.title = TILE_NAMES[id] || ("ID: " + id);
-                slot.onclick = () => { selectedBlock = id; mode = 'BUILD'; updateHUD(); };
+                slot.onclick = () => {
+                    selectedBlock = id;
+                    if (TOOLS[id]) {
+                        player.activeTool = id;
+                        mode = 'MINE';
+                    } else {
+                        // If switching to non-tool, maybe clear activeTool?
+                        // "Update Player Object: Add player.activeTool (stores the ID of the equipped item)."
+                        // Usually if holding a block, we use hand? Or activeTool persists?
+                        // Let's assume holding a block means "equipping" it, so activeTool should be null (Hand).
+                        player.activeTool = null;
+                        mode = 'BUILD';
+                    }
+                    updateHUD();
+                };
                 invBar.appendChild(slot);
             });
         }
 
         const keys = {};
+        let isMouseDown = false;
+
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
             if (e.code === 'KeyE') { mode = mode === 'MINE' ? 'BUILD' : 'MINE'; updateHUD(); }
@@ -845,18 +1004,29 @@
             if (e.key >= '1' && e.key <= '9') { const map = [0, TILES.DIRT, TILES.GRASS, TILES.STONE, TILES.SAND, TILES.MUD, TILES.WOOD, TILES.PLANKS, TILES.TORCH, TILES.WATER, TILES.SNOW]; if (map[e.key]) { selectedBlock = map[e.key]; mode = 'BUILD'; updateHUD(); } }
         });
         window.addEventListener('keyup', e => { keys[e.code] = false; });
-        canvas.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseTile.c = Math.floor((e.clientX - r.left + camera.x) / TILE_SIZE); mouseTile.r = Math.floor((e.clientY - r.top + camera.y) / TILE_SIZE); });
+
+        canvas.addEventListener('mousemove', e => {
+            const r = canvas.getBoundingClientRect();
+            mouseTile.c = Math.floor((e.clientX - r.left + camera.x) / TILE_SIZE);
+            mouseTile.r = Math.floor((e.clientY - r.top + camera.y) / TILE_SIZE);
+
+            if (isMouseDown && mode === 'MINE') {
+                if (mouseTile.c !== currentMiningTarget.c || mouseTile.r !== currentMiningTarget.r) {
+                    currentMiningTarget = { r: mouseTile.r, c: mouseTile.c };
+                    miningProgress = 0;
+                    isMining = true;
+                }
+            }
+        });
+
         canvas.addEventListener('mousedown', e => {
+            isMouseDown = true;
             const c = mouseTile.c, r = mouseTile.r;
             if (r>=0 && r<ROWS && c>=0 && c<COLS) {
                  if (mode === 'MINE') {
-                    let t = world[r][c];
-                    if (t !== TILES.AIR) { 
-                        inventory[t]++; 
-                        if(t === TILES.TORCH || t === TILES.CAMPFIRE) removeFromTorchList(r, c);
-                        world[r][c] = TILES.AIR; 
-                        updateHUD(); 
-                    }
+                    currentMiningTarget = { r, c };
+                    miningProgress = 0;
+                    isMining = true;
                  } else {
                      let tileX = c * TILE_SIZE; let tileY = r * TILE_SIZE;
                      let intersect = ( player.x < tileX + TILE_SIZE && player.x + player.width > tileX && player.y < tileY + TILE_SIZE && player.y + player.height > tileY );
@@ -867,6 +1037,12 @@
                      }
                  }
             }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            isMining = false;
+            miningProgress = 0;
         });
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
 
